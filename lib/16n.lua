@@ -51,6 +51,13 @@ _16n.init = function(cc_cb_fn)
              _16n.last_values[d.cc] = d.val
              cc_cb_fn(d) 
            end
+        -- 16n physical shift button sends note_on/note_off
+        elseif (d.type == 'note_on' or d.type == 'note_off') and cc_cb_fn ~= nil then
+           cc_cb_fn({
+              type = (d.type == 'note_on') and 'shift_press' or 'shift_release',
+              note = d.note,
+              vel = d.vel
+           })
         end
       end
       _16n.request_sysex_config_dump(dev_16n)

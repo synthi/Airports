@@ -204,31 +204,29 @@ local function draw_tape_page(state, shift)
    -- Header
    screen.level(4); screen.move(64, 8); screen.text_center("AIRPORTS — TRACK " .. sel)
    
-   -- Encoder labels
-   if state.grid_track_held then
-      -- Track Held mode
-      draw_left_e1("REC LVL", string.format("%.1fdB", t.rec_level or -3.0))
-      screen.level(3); screen.move(55, 53); screen.text("INPUT SRC")
-      local src_names = {"INPUT","PRE REV","POST REV","TRK1","TRK2","TRK3","TRK4"}
-      screen.level(15); screen.move(55, 60); screen.text(src_names[(t.src_sel or 0) + 1])
-      screen.level(3); screen.move(95, 53); screen.text("FINE LEN")
-      screen.level(15); screen.move(95, 60); screen.text(string.format("%.4fs", params:get("l"..sel.."_length")))
-   elseif shift then
-      -- Shift mode (K1 held)
-      draw_left_e1("REC IN", string.format("%.1fdB", t.rec_level or -3.0))
-      local start_p = floor((t.loop_start or 0) * 100)
-      local end_p = floor((t.loop_end or 1) * 100)
-      draw_right_param_pair("START", start_p .. "%", "END", end_p .. "%")
-   else
-      -- Normal mode
-      local speed = t.speed or 1
-      local dir_sym = speed < 0 and "<<" or ">>"
-      draw_left_e1("SPEED", string.format("%s %.2f", dir_sym, math.abs(speed)))
-      screen.level(3); screen.move(55, 53); screen.text("LENGTH")
-      screen.level(15); screen.move(55, 60); screen.text(string.format("%.2fs", params:get("l"..sel.."_length")))
-      screen.level(3); screen.move(95, 53); screen.text("DUB")
-      screen.level(15); screen.move(95, 60); screen.text(string.format("%.0f%%", (t.overdub or 0.5)*100))
-   end
+    -- Encoder labels
+    if state.grid_track_held then
+       -- Track Held mode (tertiary)
+       draw_left_e1("REC LVL", string.format("%.1fdB", t.rec_level or -3.0))
+       screen.level(3); screen.move(55, 53); screen.text("INPUT SRC")
+       local src_names = {"INPUT","PRE REV","POST REV","TRK1","TRK2","TRK3","TRK4"}
+       screen.level(15); screen.move(55, 60); screen.text(src_names[(t.src_sel or 0) + 1])
+    elseif shift then
+       -- Shift mode (K1 held): E1=SPEED, E2=START, E3=END
+       local speed = t.speed or 1
+       local dir_sym = speed < 0 and "<<" or ">>"
+       draw_left_e1("SPEED", string.format("%s %.2f", dir_sym, math.abs(speed)))
+       local start_p = floor((t.loop_start or 0) * 100)
+       local end_p = floor((t.loop_end or 1) * 100)
+       draw_right_param_pair("START", start_p .. "%", "END", end_p .. "%")
+    else
+       -- Normal mode: E1=LENGTH, E2=DEGRADE, E3=DUB
+       draw_left_e1("LENGTH", string.format("%.2fs", params:get("l"..sel.."_length")))
+       screen.level(3); screen.move(55, 53); screen.text("DEGRADE")
+       screen.level(15); screen.move(55, 60); screen.text(string.format("%.0f%%", (t.wow_macro or 0)*100))
+       screen.level(3); screen.move(95, 53); screen.text("DUB")
+       screen.level(15); screen.move(95, 60); screen.text(string.format("%.0f%%", (t.overdub or 0.5)*100))
+    end
    
    draw_goniometer(state)
    
@@ -256,7 +254,7 @@ local function draw_tape_page(state, shift)
    end
    
    -- Label dinámico para E4 (Fates)
-   screen.level(3); screen.move(0, 62); screen.text("E4=DEGRADE")
+   screen.level(3); screen.move(0, 62); screen.text("E4=REC LVL")
    
    draw_popup(state)
    screen.update()

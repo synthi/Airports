@@ -210,7 +210,7 @@ Engine_Airports : CroneEngine {
                 lfo_mod = Select.kr(brake_idx, [1.0, LFNoise2.kr(2).range(0.95, 1.05), LFNoise2.kr(8).range(0.88, 1.12), LFNoise2.kr(4).range(0.95, 1.05), 1.0]);
                 lfo_lag_time = Select.kr(brake_idx, [0.1, 0.25, 0.1, 0.05, 0.05]);
                 lfo_mod = Lag.kr(lfo_mod, lfo_lag_time);
-                rate_slew = Lag.kr(l_speed_arr[i], 0.05) * brake_mod * lfo_mod;
+                rate_slew = Lag.kr(l_speed_arr[i], 0.07) * brake_mod * lfo_mod;
 
                 // DEGRADE flutter
                 deg_curve = l_deg_arr[i].pow(4.0);
@@ -253,7 +253,7 @@ Engine_Airports : CroneEngine {
                 play_sig = play_sig * (1.0 - loop_gain_loss);
                 sat_drive = Select.kr(l_deg_arr[i] > 0.2, [DC.kr(1.0), Select.kr(l_deg_arr[i] > 0.5, [LinLin.kr(l_deg_arr[i], 0.2, 0.5, 1.0, 1.5), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.5, 0.8, 1.5, 3.0), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 3.0, 4.5)])])]);
                 play_sig = Select.ar(l_deg_arr[i] < 0.2, [(play_sig * sat_drive).tanh, play_sig]);
-                dynamic_cutoff = (rate_slew.abs * 20000).clip(25, 20000);
+                dynamic_cutoff = (rate_slew.abs * 20000).clip(50, 20000);
                 play_sig = LPF.ar(play_sig, dynamic_cutoff);
                 sig_out = play_sig;
 

@@ -79,7 +79,7 @@ end
 
 function Loopers.set_speed_slew(idx, target_speed, slew_time, state, start_val_override)
    local t = state.tracks[idx]
-   if slew_time < 0.1 then
+   if slew_time < 0.05 then
       t.speed = target_speed
       Loopers.refresh(idx, state)
       return

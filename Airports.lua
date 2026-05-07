@@ -179,28 +179,32 @@ function enc(n, d)
   
   if page == 7 then
      -- TAPE page
-     if state.grid_track_held then
+     -- E4 = REC LEVEL (always, in all modes)
+     if n == 4 then Loopers.delta_param("rec_level", d, state)
+     
+     -- Tertiary mode (Track Held)
+     elseif state.grid_track_held then
         if n == 1 then
            Loopers.delta_param("rec_level", d, state)
         elseif n == 2 then
            Loopers.delta_param("src_sel", d, state)
-        elseif n == 3 then
-           local id = "l"..state.track_sel.."_length"
-           params:delta(id, d * 0.005)
         end
-      elseif shift then
-         if n == 1 then Loopers.delta_param("degrade", d, state)
+     
+     -- Shift mode (K1 held / grid_shift)
+     elseif shift then
+         if n == 1 then Loopers.delta_param("speed", d, state)
          elseif n == 2 then Loopers.delta_param("start", d, state)
          elseif n == 3 then Loopers.delta_param("end", d, state) end
-      else
-         if n == 1 then Loopers.delta_param("speed", d, state)
-         elseif n == 2 then
+     
+     -- Normal mode: E1=LENGTH, E2=DEGRADE, E3=DUB
+     else
+         if n == 1 then
             local resolution = (math.abs(d) > 1) and 1.0 or 0.01
             local id = "l"..state.track_sel.."_length"
             params:delta(id, d * resolution)
+         elseif n == 2 then Loopers.delta_param("degrade", d, state)
          elseif n == 3 then Loopers.delta_param("overdub", d, state) end
-      end
-      if n == 4 then Loopers.delta_param("rec_level", d, state) end
+     end
      
   elseif page == 8 then
      -- MIXER page (Sitral Mixer)
@@ -356,6 +360,18 @@ local function apply_glue(val, id)
 end
 
 local function handle_16n(msg)
+    -- Handle 16n physical shift button
+    if msg.type == 'shift_press' then
+       state.sixteen_n_shift = true
+       -- Reset fader latches so layer switch is smooth
+       for i=1, 8 do state.fader_latched[i] = false end
+       return
+    elseif msg.type == 'shift_release' then
+       state.sixteen_n_shift = false
+       for i=1, 8 do state.fader_latched[i] = false end
+       return
+    end
+    
     local id = _16n.cc_2_slider_id(msg.cc)
     if not id then return end
     

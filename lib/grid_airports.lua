@@ -312,12 +312,17 @@ end
 
 -- Check if event should be recorded by sequencers
 local function is_recordable(x, y, is_page_nav)
-  -- Don't record page nav (Y=8, X=13-16) or SHIFT (X=2, Y=8) or MOMENTARY (X=1, Y=8)
-  if is_page_nav then return false end
-  if y == 8 and (x == 1 or x == 2) then return false end
+  -- Don't record: page buttons (Y=8, X=13-16)
   if y == 8 and x >= 13 then return false end
-  -- Don't record Track Select (Y=5, X=1-4)
+  -- Don't record: SHIFT (Y=8, X=2)
+  if y == 8 and x == 2 then return false end
+  -- Don't record: MOMENTARY (Y=8, X=1)
+  if y == 8 and x == 1 then return false end
+  -- Don't record: SEQUENCER buttons (Y=8, X=3-6) — CRITICAL: prevents self-re-triggering
+  if y == 8 and x >= 3 and x <= 6 then return false end
+  -- Don't record: Track Select (Y=5, X=1-4)
   if y == 5 and x >= 1 and x <= 4 then return false end
+  -- YES record presets (Y=8, X=8-11), transport, speed, brake, jump, random, warp, looper touch
   return true
 end
 
@@ -704,7 +709,7 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
            end
            state.ribbon_target_speed = tgt_speed
            if state.grid_momentary_mode then
-              Loopers.set_speed_slew(target, state.ribbon_target_speed, 0.1, state, state.ribbon_start_speed)
+              Loopers.set_speed_slew(target, state.ribbon_target_speed, 0.07, state, state.ribbon_start_speed)
            end
         elseif z == 0 then
            if state.grid_momentary_mode and state.ribbon_memory[target] then
