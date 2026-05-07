@@ -599,12 +599,13 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         local trk = x - 5
         if z == 1 then
            if state.grid_shift_active then
-              -- Shift+Jump: Open jump config page
-              state.config_previous_page = state.current_page
-              state.current_page = 6  -- TRICKS page
-              state.config_page_active = true
-              state.config_page_type = "jump"
-              state.config_page_cursor = 1
+               -- Shift+Jump: Open jump config page
+               state.config_previous_page = state.current_page
+               state.current_page = 6  -- TRICKS page
+               state.config_page_active = true
+               state.config_page_type = "jump"
+               state.config_page_track = trk
+               state.config_page_cursor = 1
            else
               -- Momentary jump
               state.tracks[trk].jump_held = true
@@ -622,12 +623,13 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         local trk = x - 10
         if z == 1 then
            if state.grid_shift_active then
-              -- Shift+Random: Open random config page
-              state.config_previous_page = state.current_page
-              state.current_page = 6
-              state.config_page_active = true
-              state.config_page_type = "random"
-              state.config_page_cursor = 1
+               -- Shift+Random: Open random config page
+               state.config_previous_page = state.current_page
+               state.current_page = 6
+               state.config_page_active = true
+               state.config_page_type = "random"
+               state.config_page_track = trk
+               state.config_page_cursor = 1
            else
               Loopers.randomize_track(trk, state)
            end
@@ -639,12 +641,13 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
      if x == 16 then
         if z == 1 then
            if state.grid_shift_active then
-              -- Shift+Warp: Open warp config page
-              state.config_previous_page = state.current_page
-              state.current_page = 6
-              state.config_page_active = true
-              state.config_page_type = "warp"
-              state.config_page_cursor = 1
+               -- Shift+Warp: Open warp config page
+               state.config_previous_page = state.current_page
+               state.current_page = 6
+               state.config_page_active = true
+               state.config_page_type = "warp"
+               state.config_page_track = state.track_sel
+               state.config_page_cursor = 1
            else
               -- Apply warp to all tracks
               for i=1, 4 do

@@ -112,9 +112,9 @@ local function draw_tricks_page(state)
    screen.clear()
    screen.level(4); screen.move(64, 8); screen.text_center("TRICKS CONFIG")
    
-   local sel = state.track_sel
-   local t = state.tracks[sel]
-   local config_type = state.config_page_type
+    local sel = state.config_page_track or state.track_sel
+    local t = state.tracks[sel]
+    local config_type = state.config_page_type
    local cursor = state.config_page_cursor
    
    if config_type == "jump" then
@@ -153,13 +153,13 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 27 + (i * 5)
+         local y = 25 + (i * 6)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
       end
       
-      screen.level(3); screen.move(0, 60); screen.text("K3=EXIT  E2=NAV  E3=TOG")
+      screen.level(3); screen.move(0, 62); screen.text("K3=EXIT  E2=NAV  E3=TOG")
       
    elseif config_type == "warp" then
       -- Warp config

@@ -121,7 +121,7 @@ function enc(n, d)
   if state.config_page_active then
      local config_type = state.config_page_type
      local cursor = state.config_page_cursor
-     local sel = state.track_sel
+     local sel = state.config_page_track or state.track_sel
      local t = state.tracks[sel]
      
      if n == 2 then
@@ -175,20 +175,19 @@ function enc(n, d)
   end
   
   -- Normal pages
-  local shift = state.k1_held or state.grid_shift_active or state.grid_track_held
+  local shift = state.k1_held or state.grid_shift_active
+  
+  -- Tertiary mode (Track Held) — works on ALL pages
+  if state.grid_track_held then
+     if n == 1 then Loopers.delta_param("rec_level", d, state)
+     elseif n == 2 then Loopers.delta_param("src_sel", d, state) end
+     return
+  end
   
   if page == 7 then
      -- TAPE page
      -- E4 = REC LEVEL (always, in all modes)
      if n == 4 then Loopers.delta_param("rec_level", d, state)
-     
-     -- Tertiary mode (Track Held)
-     elseif state.grid_track_held then
-        if n == 1 then
-           Loopers.delta_param("rec_level", d, state)
-        elseif n == 2 then
-           Loopers.delta_param("src_sel", d, state)
-        end
      
      -- Shift mode (K1 held / grid_shift)
      elseif shift then
@@ -276,7 +275,17 @@ function key(n, z)
   end
   
   -- Normal key functions per page
-  if state.current_page == 7 then
+  if state.current_page == 9 then
+     -- AMBIENT page: K2/K3 cycle noise type
+     if n == 2 and z == 1 then
+        local cur = params:get("noise_type")
+        params:set("noise_type", ((cur - 2) % 6) + 1)
+     elseif n == 3 and z == 1 then
+        local cur = params:get("noise_type")
+        params:set("noise_type", (cur % 6) + 1)
+     end
+  
+  elseif state.current_page == 7 then
      if n == 2 then
         -- K2: toggle degrade parameter selection (or rec in shift)
         if state.grid_track_held then
@@ -379,7 +388,7 @@ local function handle_16n(msg)
     local display_name = fader_names[id]
     
     -- Layer shift: Track Held OR 16n switch → faders 1-4 = degrade, 5-8 = brake continuo
-    if state.grid_track_held or state.sixteen_n_shift then
+    if state.grid_track_held or state.sixteen_n_shift or state.k1_held or state.grid_shift_active then
         if id >= 1 and id <= 4 then
             p_name = "l"..id.."_deg"
             display_name = "TRK "..id.." DEGRADE"
