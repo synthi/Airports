@@ -82,8 +82,9 @@ function osc.event(path, args, from)
         
         -- Goniameter
         local h = state.heads.gonio
-        state.gonio_history[h].s = util.clamp((args[1]+args[2])*0.5 * 10, 0, 22)
-        state.gonio_history[h].w = util.clamp(math.abs(args[1]-args[2])*0.5 * 20, 0, 20)
+        local zoom = params:get("scope_zoom") or 4
+        state.gonio_history[h].s = util.clamp((args[1]+args[2])*0.5 * zoom * 40, 0, 22)
+        state.gonio_history[h].w = util.clamp(math.abs(args[1]-args[2])*0.5 * zoom * 80, 0, 20)
         state.heads.gonio = (h % state.GONIO_LEN) + 1
         
         -- Play positions (pointers[0..3] are args[4..7])
@@ -325,7 +326,7 @@ end
 function rec_play_tick_tape(slot)
     while true do
       local r = state.seq_slots[slot]
-      if r.state ~= 2 and r.state ~= 4 then clock.sleep(0.1)
+      if r.state ~= 4 then clock.sleep(0.1)
       else
          local event = r.data[r.step]
          if event then

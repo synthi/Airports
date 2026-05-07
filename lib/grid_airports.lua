@@ -744,42 +744,4 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
   end
 end
 
--- Seq playback function
-function Grid.seq_tick(slot, state)
-   clock.run(function()
-      while true do
-         local r = state.seq_slots[slot]
-         if r.state ~= 2 and r.state ~= 4 then
-            clock.sleep(0.1)
-         else
-            local event = r.data[r.step]
-            if event then
-            local rate = 1.0
-               local next_time = 0
-               if r.step < #r.data then
-                  next_time = (r.data[r.step+1].dt - event.dt) / rate
-               else
-                  if r.state == 4 then
-                     next_time = (r.duration - event.dt) / rate
-                  else
-                     -- Recording: will get more events
-                     clock.sleep(0.05)
-                  end
-               end
-               if next_time > 0 and next_time < 60 then
-                  if event.x and event.y and event.z then
-                     Grid.key(event.x, event.y, event.z, state, engine, true, event.tid)
-                  end
-                  clock.sleep(next_time)
-               end
-               r.step = r.step + 1
-               if r.step > #r.data then r.step = 1 end
-            else
-               clock.sleep(0.1)
-            end
-         end
-      end
-   end)
-end
-
 return Grid

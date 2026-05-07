@@ -186,7 +186,7 @@ Engine_Airports : CroneEngine {
                 var rate_slew, brake_idx, brake_mod, lfo_mod, lfo_lag_time;
                 var deg_curve, flutter_mod, final_rate;
                 var organic_brake_hpf, flux_gain;
-                var loop_len_samps, start_pos, end_pos, ptr, read_ptr;
+                var loop_len_samps, start_pos, end_pos, ptr;
                 var play_sig, deg_lpf, deg_hpf, corrosion_am, loop_ero, loop_dust_trig, loop_dropout_env, loop_gain_loss;
                 var sat_drive;
                 var dynamic_cutoff, sig_out, in_sig;
@@ -216,7 +216,7 @@ Engine_Airports : CroneEngine {
                 deg_curve = l_deg_arr[i].pow(4.0);
                 flutter_mod = Select.kr(l_deg_arr[i] > 0.4, [
                     LinLin.kr(l_deg_arr[i], 0.0, 0.4, 0.0, 0.002),
-                    Select.kr(l_deg_arr[i] > 0.6, [LinLin.kr(l_deg_arr[i], 0.4, 0.6, 0.002, 0.02), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.6, 0.8, 0.02, 0.06), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 0.06, 0.10)])])
+                    Select.kr(l_deg_arr[i] > 0.6, [LinLin.kr(l_deg_arr[i], 0.4, 0.6, 0.002, 0.02), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.6, 0.8, 0.02, 0.04), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 0.04, 0.08)])])
                 ]);
                 flutter_mod = Lag.kr(flutter_mod, 0.1);
                 final_rate = rate_slew * (1.0 - OnePole.ar(LFNoise2.ar(4+(i*1.5)).range(0, flutter_mod), 0.5));
@@ -230,10 +230,6 @@ Engine_Airports : CroneEngine {
                 end_pos = (Lag.kr(l_end_arr[i], 0.1) * loop_len_samps).max(start_pos + 10);
 
                 ptr = Phasor.ar(l_seek_t_arr[i], final_rate * BufRateScale.kr(b_idx), start_pos, end_pos, l_seek_p_arr[i] * loop_len_samps);
-                
-                // Read head offset: 16 samples behind write head for safety
-                read_ptr = ptr - 16;
-                read_ptr = Select.ar(read_ptr < start_pos, [read_ptr + (end_pos - start_pos), read_ptr]);
 
                 // Negative pointer
                 gate_ar = K2A.ar(l_rec_arr[i]);
@@ -244,12 +240,12 @@ Engine_Airports : CroneEngine {
                 neg_time = A2K.kr(rec_timer.neg);
                 pointers[i] = Select.kr(A2K.kr(is_first_pass), [ptr_norm, neg_time]);
 
-                play_sig = BufRd.ar(2, b_idx, read_ptr, 1, 2);
+                play_sig = BufRd.ar(2, b_idx, ptr, 1, 2);
 
                 // DEGRADE processing
-                deg_lpf = Lag.kr(Select.kr(l_deg_arr[i] > 0.5, [LinExp.kr(l_deg_arr[i], 0.0, 0.5, 17000, 12000), LinExp.kr(l_deg_arr[i], 0.5, 1.0, 12000, 4000)]), 0.1);
+                deg_lpf = Lag.kr(Select.kr(l_deg_arr[i] > 0.5, [LinExp.kr(l_deg_arr[i], 0.0, 0.5, 17000, 12000), Select.kr(l_deg_arr[i] > 0.8, [LinExp.kr(l_deg_arr[i], 0.5, 0.8, 12000, 4000), LinExp.kr(l_deg_arr[i], 0.8, 1.0, 4000, 2800)])]), 0.1);
                 play_sig = LPF.ar(LPF.ar(play_sig, deg_lpf), deg_lpf);
-                corrosion_am = Lag.kr(1.0 - (LFNoise2.kr(8 + (i*2)).unipolar * l_deg_arr[i] * 0.6), 0.1);
+                corrosion_am = Lag.kr(1.0 - (LFNoise2.kr(8 + (i*2)).unipolar * Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.0, 0.8, 0.0, 0.6), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 0.6, 0.75)])), 0.1);
                 play_sig = play_sig * corrosion_am;
                 loop_ero = LinLin.kr(l_deg_arr[i], 0.4, 1.0, 0.0, 0.5).max(0);
                 loop_dust_trig = Dust.kr(loop_ero * 15);
@@ -291,7 +287,7 @@ Engine_Airports : CroneEngine {
                 // PHYSICS
                 tape_physics_cutoff = LinExp.ar(final_rate.abs.max(0.01), 0.25, 1.0, 6000, 17000).clip(1000, 20000);
                 output_sig = LPF.ar(output_sig, tape_physics_cutoff);
-                deg_hpf = Select.kr(l_deg_arr[i] > 0.5, [LinExp.kr(l_deg_arr[i], 0.0, 0.5, 10, 60), LinExp.kr(l_deg_arr[i], 0.5, 1.0, 60, 100)]);
+                deg_hpf = Select.kr(l_deg_arr[i] > 0.5, [LinExp.kr(l_deg_arr[i], 0.0, 0.5, 10, 60), Select.kr(l_deg_arr[i] > 0.8, [LinExp.kr(l_deg_arr[i], 0.5, 0.8, 60, 100), LinExp.kr(l_deg_arr[i], 0.8, 1.0, 100, 160)])]);
                 output_sig = HPF.ar(output_sig, deg_hpf);
                 output_sig = HPF.ar(output_sig, organic_brake_hpf);
                 output_sig = output_sig * flux_gain;
