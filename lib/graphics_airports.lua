@@ -1,4 +1,4 @@
--- Airports lib/graphics_airports.lua | Version 1.00
+-- Airports lib/graphics_airports.lua | Version 1.01
 -- Screen graphics for Airports
 -- 4 pages: TAPE (7), MIXER (8), AMBIENT (9), MASTER (10)
 -- Config pages: TRICKS (6) for Jump/Random/Warp
@@ -204,10 +204,6 @@ local function draw_tape_page(state, shift)
    -- Header
    screen.level(4); screen.move(64, 8); screen.text_center("AIRPORTS — TRACK " .. sel)
    
-   -- Degrade info
-   screen.level(3); screen.move(55, 8); screen.text("DEGRADE")
-   screen.level(6); screen.move(55, 15); screen.text(string.format("%.2f", t.wow_macro or 0))
-   
    -- Encoder labels
    if state.grid_track_held then
       -- Track Held mode
@@ -234,8 +230,6 @@ local function draw_tape_page(state, shift)
       screen.level(15); screen.move(95, 60); screen.text(string.format("%.0f%%", (t.overdub or 0.5)*100))
    end
    
-   draw_vertical_divider()
-   draw_header_right("TRACK " .. sel)
    draw_goniometer(state)
    
    -- Track mini-bars
@@ -424,8 +418,8 @@ local function draw_master_page(state, shift)
    
    if not shift then
       local mon = params:get("main_mon") or 0.833
-      local thresh = params:get("comp_thresh") or -12.0
-      local ratio = params:get("comp_ratio") or 2.2
+      local thresh = params:get("bus_thresh") or -12.0
+      local ratio = params:get("bus_ratio") or 2.2
       local bal = params:get("balance") or 0
       
       draw_left_e1("MONITOR", string.format("%.1fdB", util.linlin(0, 1, -60, 12, mon)))
@@ -459,7 +453,7 @@ local function draw_master_page(state, shift)
       -- Shift: Limiter Ceil, Bass Focus, Comp Drive
       local ceil = params:get("limiter_ceil") or -0.1
       local bf = params:get("bass_focus") or 0
-      local drive = params:get("comp_drive") or 1.0
+      local drive = params:get("bus_drive") or 1.0
       local bf_names = {"OFF", "50Hz", "100Hz", "200Hz"}
       
       draw_left_e1("CEIL", string.format("%.1fdB", ceil))

@@ -1,4 +1,4 @@
-// lib/Engine_Airports.sc | Version 1.02
+// lib/Engine_Airports.sc | Version 1.03
 // AIRPORTS — 4 Ambient Loopers for norns
 // FIXED v1.02: Input sources: INPUT, PRE REVERB, POST REVERB, TRACK 1-4
 

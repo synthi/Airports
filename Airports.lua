@@ -1,4 +1,4 @@
--- Airports.lua | Version 1.00
+-- Airports.lua | Version 1.01
 -- Ambient loopers for norns
 -- Inspired by Brian Eno's "Music for Airports"
 -- 4 seamless continuous loopers with degrade, brake, jump, warp
@@ -647,7 +647,7 @@ function init()
   clock.run(function()
      clock.sleep(0.5)
      state.loaded = true
-     print("Airports loaded (v1.00). 4 ambient loopers ready.")
+     print("Airports loaded (v1.01). 7 input sources, 4 ambient loopers ready.")
   end)
 end
 

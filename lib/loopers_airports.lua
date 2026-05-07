@@ -1,4 +1,4 @@
--- Airports lib/loopers_airports.lua | Version 1.00
+-- Airports lib/loopers_airports.lua | Version 1.01
 -- Ambient loopers logic (seamless continuous loopers)
 -- Adapted from Avant_lab_V lib/loopers.lua
 
@@ -54,12 +54,12 @@ function Loopers.refresh(t_idx, state)
   
   local length = params:get("l"..t_idx.."_length")
   
-  local args = {
-      f(gate_rec), f(gate_play), f(t.vol or 0.833), f(t.speed or 1.0),
-      f(sc_start), f(sc_end), f(t.src_sel), f(send_dub),
-      f(t.aux_send), f(t.wow_macro), f(t.brake_amt or 0),
-      f(length)
-  }
+   local args = {
+       f(gate_rec), f(gate_play), f(t.vol or 0.833), f(t.speed or 1.0),
+       f(sc_start), f(sc_end), f(t.src_sel), f(send_dub),
+       f(t.wow_macro), f(t.brake_amt or 0), f(t.rec_level or -3.0),
+       f(length)
+   }
 
   if t_idx == 1 then engine.l1_config(table.unpack(args))
   elseif t_idx == 2 then engine.l2_config(table.unpack(args))
@@ -115,10 +115,13 @@ function Loopers.clear(idx, state)
    local t = state.tracks[idx]
    t.state = 1; t.rec_len = 0; t.play_pos = 0
    t.loop_start = 0; t.loop_end = 1; t.speed = 1.0; t.overdub = 1.0
-   t.wow_macro = 0
+   t.wow_macro = 0; t.brake_amt = 0
    state.tape_filenames[idx] = nil
    t.is_dirty = false
    t.file_path = nil
+   
+   -- Reset length to full 120s
+   params:set("l"..idx.."_length", MAX_BUFFER_SEC)
    
    if engine.clear then engine.clear(idx) end
    
