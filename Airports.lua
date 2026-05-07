@@ -1,4 +1,4 @@
--- Airports.lua | Version 1.01
+-- Airports.lua | Version 1.02
 -- Ambient loopers for norns
 -- Inspired by Brian Eno's "Music for Airports"
 -- 4 seamless continuous loopers with degrade, brake, jump, warp
@@ -52,8 +52,8 @@ local fader_map = {
     [5] = "l1_filter", [6] = "l2_filter", [7] = "l3_filter", [8] = "l4_filter",
     [9] = "reverb_mix", [10] = "reverb_time",
     [11] = "noise_amp", [12] = "global_lpf",
-    [13] = "main_mon", [14] = "comp_thresh",
-    [15] = "comp_ratio", [16] = "balance"
+    [13] = "main_mon", [14] = "bus_thresh",
+    [15] = "bus_ratio", [16] = "balance"
 }
 
 local fader_names = {
@@ -188,19 +188,19 @@ function enc(n, d)
            local id = "l"..state.track_sel.."_length"
            params:delta(id, d * 0.005)
         end
-     elseif shift then
-        if n == 1 then Loopers.delta_param("rec_level", d, state)
-        elseif n == 2 then Loopers.delta_param("start", d, state)
-        elseif n == 3 then Loopers.delta_param("end", d, state) end
-     else
-        if n == 1 then Loopers.delta_param("speed", d, state)
-        elseif n == 2 then
-           local resolution = (math.abs(d) > 1) and 1.0 or 0.01
-           local id = "l"..state.track_sel.."_length"
-           params:delta(id, d * resolution)
-        elseif n == 3 then Loopers.delta_param("overdub", d, state) end
-     end
-     if n == 4 then Loopers.delta_param("degrade", d, state) end
+      elseif shift then
+         if n == 1 then Loopers.delta_param("degrade", d, state)
+         elseif n == 2 then Loopers.delta_param("start", d, state)
+         elseif n == 3 then Loopers.delta_param("end", d, state) end
+      else
+         if n == 1 then Loopers.delta_param("speed", d, state)
+         elseif n == 2 then
+            local resolution = (math.abs(d) > 1) and 1.0 or 0.01
+            local id = "l"..state.track_sel.."_length"
+            params:delta(id, d * resolution)
+         elseif n == 3 then Loopers.delta_param("overdub", d, state) end
+      end
+      if n == 4 then Loopers.delta_param("rec_level", d, state) end
      
   elseif page == 8 then
      -- MIXER page (Sitral Mixer)
@@ -325,7 +325,7 @@ function rec_play_tick_tape(slot)
             end
             if next_time < 0 then next_time = 0 end
             if event.x and event.y and event.z then
-               Grid.key(event.x, event.y, event.z, state, engine, nil, event.tid)
+               Grid.key(event.x, event.y, event.z, state, engine, true, event.tid)
             end
             if next_time > 0 then clock.sleep(next_time) end
             r.step = r.step + 1
@@ -362,8 +362,8 @@ local function handle_16n(msg)
     local p_name = fader_map[id]
     local display_name = fader_names[id]
     
-    -- Layer shift: Track Held → faders 1-4 = degrade, 5-8 = brake continuo
-    if state.grid_track_held then
+    -- Layer shift: Track Held OR 16n switch → faders 1-4 = degrade, 5-8 = brake continuo
+    if state.grid_track_held or state.sixteen_n_shift then
         if id >= 1 and id <= 4 then
             p_name = "l"..id.."_deg"
             display_name = "TRK "..id.." DEGRADE"
@@ -580,7 +580,7 @@ function init()
   
   -- Track parameters (4 tracks)
   for i=1, 4 do
-    params:add_group("TRACK " .. i, 16)
+    params:add_group("TRACK " .. i, 15)
     params:add{type = "control", id = "l"..i.."_speed", name = "Speed", controlspec = controlspec.new(-2.0, 2.0, 'lin', 0.002, 1.0), formatter = function(p) return string.format("x%.2f", p:get()) end, action = function(x) state.tracks[i].speed = x; Loopers.refresh(i, state) end}
     params:add{type = "control", id = "l"..i.."_vol", name = "Volume", controlspec = controlspec.new(0, 1.0, 'lin', 0.001, 0.833), formatter = fmt_db, action = function(x) state.tracks[i].vol = x; Loopers.refresh(i, state) end}
     params:add{type = "control", id = "l"..i.."_dub", name = "Overdub", controlspec = controlspec.new(0, 1.11, 'lin', 0.001, 1.0), formatter = fmt_percent, action = function(x) state.tracks[i].overdub = x; Loopers.refresh(i, state) end}
@@ -647,7 +647,7 @@ function init()
   clock.run(function()
      clock.sleep(0.5)
      state.loaded = true
-     print("Airports loaded (v1.01). 7 input sources, 4 ambient loopers ready.")
+      print("Airports loaded (v1.02). 7 input sources, 4 ambient loopers ready.")
   end)
 end
 

@@ -126,6 +126,7 @@ function Globals.new()
     s.hw_positions[i] = -1
   end
   s.grid_mixer_held = false
+  s.sixteen_n_shift = false
   
   -- Popup
   s.popup = {

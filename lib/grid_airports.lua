@@ -1,4 +1,4 @@
--- Airports lib/grid_airports.lua | Version 1.00
+-- Airports lib/grid_airports.lua | Version 1.02
 -- Monome Grid 16x8 interface for Airports
 
 local Grid = {}
@@ -322,24 +322,29 @@ local function is_recordable(x, y, is_page_nav)
 end
 
 function Grid.key(x, y, z, state, engine, simulated_page, target_track)
-  local now = util.time()
-  
-  -- Debounce
-  if z == 1 then
-     local last = state.grid_debounce[x][y] or 0
-     if (now - last) < 0.05 then return end
-     state.grid_debounce[x][y] = now
-     state.button_state[x][y] = true
-  elseif z == 0 then
-     if not state.button_state[x][y] then return end
-     state.button_state[x][y] = false
-  end
-  
-  -- Record event for sequencers
-  local is_page_nav = (y == 8 and x >= 13)
-  if is_recordable(x, y, is_page_nav) then
-     record_event(state, x, y, z)
-  end
+   local now = util.time()
+   local is_physical = (simulated_page == nil)
+   
+   -- Debounce (only for physical events)
+   if is_physical then
+      if z == 1 then
+         local last = state.grid_debounce[x][y] or 0
+         if (now - last) < 0.05 then return end
+         state.grid_debounce[x][y] = now
+         state.button_state[x][y] = true
+      elseif z == 0 then
+         if not state.button_state[x][y] then return end
+         state.button_state[x][y] = false
+      end
+   end
+   
+   -- Record event for sequencers (only physical events)
+   if is_physical then
+      local is_page_nav = (y == 8 and x >= 13)
+      if is_recordable(x, y, is_page_nav) then
+         record_event(state, x, y, z)
+      end
+   end
   
   -- =====================
   -- ROW 8: MOM, SHIFT, SEQS, PRESETS, PAGES
@@ -487,18 +492,16 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         return
      end
      
-     -- PAGE SELECTS (X=13-16)
-     if x >= 13 and x <= 16 then
-        if z == 1 then
-           -- If shift is held and we press a page, go to config
-           if state.grid_shift_active then
-              -- Shift+Page = doesn't change page normally
-           else
-              state.current_page = x - 6  -- Maps 13→7, 14→8, 15→9, 16→10
-           end
-        end
-        return
-     end
+      -- PAGE SELECTS (X=13-16) — Held = Shift mode (like Avant_lab_V)
+      if x >= 13 and x <= 16 then
+         if z == 1 then
+            state.grid_shift_active = true
+            state.current_page = x - 6  -- Maps 13→7, 14→8, 15→9, 16→10
+         elseif z == 0 then
+            state.grid_shift_active = false
+         end
+         return
+      end
      
      return
   end
@@ -710,8 +713,8 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
            else
               if not state.grid_momentary_mode then
                  local dur = now - state.ribbon_press_time
-                 local slew = 0
-                 if dur < 0.15 then slew = 0.05
+                  local slew = 0
+                  if dur < 0.15 then slew = 0.1
                  elseif dur < 2.0 then slew = util.linlin(0.15, 2.0, 0.5, 2.0, dur)
                  elseif dur < 3.0 then slew = 5.0
                  else slew = 8.0 end
@@ -743,7 +746,7 @@ function Grid.seq_tick(slot, state)
          else
             local event = r.data[r.step]
             if event then
-               local rate = 1.0  -- Could add seq_rate param
+            local rate = 1.0
                local next_time = 0
                if r.step < #r.data then
                   next_time = (r.data[r.step+1].dt - event.dt) / rate
@@ -757,7 +760,7 @@ function Grid.seq_tick(slot, state)
                end
                if next_time > 0 and next_time < 60 then
                   if event.x and event.y and event.z then
-                     Grid.key(event.x, event.y, event.z, state, engine, nil, event.tid)
+                     Grid.key(event.x, event.y, event.z, state, engine, true, event.tid)
                   end
                   clock.sleep(next_time)
                end
