@@ -1,4 +1,4 @@
--- Airports lib/graphics_airports.lua | Version 1.01
+-- Airports lib/graphics_airports.lua | Version 1.02
 -- Screen graphics for Airports
 -- 4 pages: TAPE (7), MIXER (8), AMBIENT (9), MASTER (10)
 -- Config pages: TRICKS (6) for Jump/Random/Warp
@@ -129,7 +129,7 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 28 + (i * 8)
+         local y = 20 + (i * 8)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
@@ -138,7 +138,7 @@ local function draw_tricks_page(state)
       screen.level(3); screen.move(0, 60); screen.text("K3=EXIT  E2=NAV  E3=VAL")
       
    elseif config_type == "random" then
-      -- Random config — per-track page (like jump)
+      -- Random config — per-track page
       screen.level(4); screen.move(64, 8); screen.text_center("RANDOM CONFIG — TRK " .. sel)
       
       local items = {"SPEED", "DEGRADE", "LOOP POS", "EQ/FILTER", "VOLUME"}
@@ -151,13 +151,13 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 28 + (i * 8)
+         local y = 16 + (i * 8)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
       end
       
-      screen.level(3); screen.move(0, 62); screen.text("K3=EXIT  E2=NAV  E3=TOG")
+      screen.level(3); screen.move(0, 60); screen.text("K3=EXIT  E2=NAV  E3=TOG")
       
    elseif config_type == "warp" then
       -- Warp config — specific header, no generic TRICKS CONFIG
@@ -288,7 +288,7 @@ local function draw_mixer_page(state, shift)
       screen.level(15); screen.move(110, 62); screen.text(string.format("%.2f", t.l_width or 1))
    end
    
-   -- Rails con faders (exactamente igual que Avant_lab_V)
+   -- Rails con faders
    local x_base = 25; local spacing = 26; local y_top = 17; local y_bot = 49; local h_rail = y_bot - y_top
    for i=1, 4 do
       local x = x_base + ((i-1) * spacing)
@@ -379,8 +379,7 @@ local function draw_ambient_page(state, shift)
       screen.level(3); screen.move(60, 30); screen.text("TYPE")
       screen.level(15); screen.move(85, 30); screen.text(noise_names[noise_type + 1])
       
-      -- Goniameter
-      draw_goniometer(state)
+      -- NO goniometer on AMBIENT page — keep it clean
       
       screen.level(3); screen.move(0, 53); screen.text("E1:REV MIX")
       screen.level(3); screen.move(50, 53); screen.text("E2:TIME")
@@ -398,7 +397,6 @@ local function draw_ambient_page(state, shift)
       screen.level(15); screen.move(95, 60); screen.text(string.format("%.0fHz", global_hpf))
       
       draw_vertical_divider()
-      draw_goniometer(state)
       draw_header_right("FILTERS")
    end
    

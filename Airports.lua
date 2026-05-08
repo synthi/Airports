@@ -9,6 +9,7 @@ local Globals = include('lib/globals_airports')
 local Loopers = include('lib/loopers_airports')
 local Grid = include('lib/grid_airports')
 local Graphics = include('lib/graphics_airports')
+local Storage = include('lib/storage_airports')
 
 local _16n = include('lib/16n')
 
@@ -656,6 +657,10 @@ function init()
   params:add{type = "file", id = "load_reel_4", name = "Load Tape 4", path = _path.audio, action = function(f) Loopers.load_file(4, f, state) end}
   
   Grid.init(state, g)
+  
+  -- Pset save/load hooks
+  params.action_write = function(filename, name, number) Storage.save_data(state, number) end
+  params.action_read = function(filename, silent, number) Storage.load_data(state, number) end
   
   -- Metros
   local screen_timer = metro.init()

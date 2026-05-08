@@ -194,22 +194,19 @@ local function draw_row8(state)
      led_buf(i + 2, 8, b)
   end
   
-  -- Separator (X=7)
-  led_buf(7, 8, 0)
-  
-  -- Presets (X=8-11)
+  -- Presets (X=7-10) — same base brightness as brake row (2)
   for i=1, 4 do
-     local x = i + 7
+     local x = i + 6
      local st = state.presets_status[i]
-     local b = DIM_BRIGHT
-     if st == 1 then b = MED_BRIGHT end
-     if state.preset_selected == i then b = MAX_BRIGHT end
+     local b = 2  -- Same as brake row Y=7,X=1 base brightness
+     if st == 1 then b = 8 end  -- Saved
+     if state.preset_selected == i then b = MAX_BRIGHT end  -- Selected
      if state.preset_morph_active and state.preset_morph_slot == i then b = MAX_BRIGHT end
      led_buf(x, 8, b)
   end
   
-  -- Separator (X=12)
-  led_buf(12, 8, 0)
+  -- TAPE LIBRARY (X=12)
+  led_buf(12, 8, 4)
   
   -- Page selects (X=13-16)
   for i=1, 4 do
@@ -246,11 +243,11 @@ function Grid.redraw(state)
   g:refresh()
 end
 
--- Record events for sequencers (Avant_lab_V pattern: record in Armed AND Playing states)
+-- Record events for sequencers: record in Recording (1) and Playing/Overdub (4) states
 local function record_event(state, x, y, z)
   for i=1, 4 do
     local r = state.seq_slots[i]
-    -- State 1 = Armed (recording from first event), State 4 = Playing (overdub)
+    -- State 1 = Recording, State 4 = Playing/Overdub
     if r.state == 1 or r.state == 4 then
        local now = util.time()
        local dt = 0
@@ -273,8 +270,8 @@ local function handle_looper_touch(state, x, y, z)
      state.grid_track_held = true
      state.track_sel = trk
      
-     -- Reset 16n latches for layer switch
-     for i=1, 4 do state.fader_latched[i] = false end
+     -- Reset 16n latches for layer switch (all 8 faders)
+     for i=1, 8 do state.fader_latched[i] = false end
      
      clock.run(function()
         clock.sleep(0.06)
@@ -304,7 +301,7 @@ local function handle_looper_touch(state, x, y, z)
      for k,v in pairs(state.grid_keys_held[trk]) do if v then any_held = true end end
      if not any_held then
          state.grid_track_held = false
-         for i=1, 4 do state.fader_latched[i] = false end
+         for i=1, 8 do state.fader_latched[i] = false end
      end
      
      local count = 0; for k,v in pairs(state.grid_keys_held[trk]) do if v then count=count+1 end end
@@ -328,7 +325,9 @@ local function is_recordable(x, y, is_page_nav)
   if y == 8 and x >= 3 and x <= 6 then return false end
   -- Don't record: Track Select (Y=5, X=1-4)
   if y == 5 and x >= 1 and x <= 4 then return false end
-  -- YES record presets (Y=8, X=8-11), transport, speed, brake, jump, random, warp, looper touch
+  -- Don't record: TAPE LIBRARY (Y=8, X=12)
+  if y == 8 and x == 12 then return false end
+  -- YES record presets (Y=8, X=7-10), transport, speed, brake, jump, random, warp, looper touch
   return true
 end
 
@@ -364,6 +363,7 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
      -- SHIFT (X=2)
      if x == 2 then
         state.grid_shift_active = (z == 1)
+        for i=1, 8 do state.fader_latched[i] = false end
         if z == 0 then
            -- Close config page if leaving shift
            if state.config_page_active then
@@ -381,32 +381,26 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         return
      end
      
-     -- SEQUENCERS (X=3-6) — Avant_lab_V pattern: Arm→Record→Play→Overdub
+     -- SEQUENCERS (X=3-6) — First press = Record, second = Play
      if x >= 3 and x <= 6 then
         local slot = x - 2
         if z == 1 then
            if state.seq_slots[slot].state == 0 then
-              -- Empty → Arm (start recording from first event)
+              -- Empty → Record immediately (first press)
               state.seq_slots[slot].state = 1
               state.seq_slots[slot].start_time = now
               state.seq_slots[slot].data = {}
               state.seq_slots[slot].step = 1
               state.seq_slots[slot].duration = 0
            elseif state.seq_slots[slot].state == 1 then
-              -- Armed/Recording → Stop recording, set duration
+              -- Recording → Play directly (second press)
               state.seq_slots[slot].duration = now - state.seq_slots[slot].start_time
-              if state.seq_slots[slot].duration < 0.001 then state.seq_slots[slot].duration = 1 end
-              state.seq_slots[slot].state = 2
-              state.seq_slots[slot].step = 1
-           elseif state.seq_slots[slot].state == 2 then
-              -- Stopped → Play (start playback)
+              if state.seq_slots[slot].duration < 0.05 then state.seq_slots[slot].duration = 0.5 end
               state.seq_slots[slot].state = 4
               state.seq_slots[slot].start_time = now
               state.seq_slots[slot].step = 1
            elseif state.seq_slots[slot].state == 4 then
-              -- Playing → Overdub (keep data, record new events on top)
-              state.seq_slots[slot].state = 4  -- Stay in 4 but flag overdub
-              -- Toggle overdub: re-arm recording within existing loop
+              -- Playing → Overdub (re-arm recording within existing loop)
               state.seq_slots[slot].start_time = now
            end
         elseif z == 0 then
@@ -426,9 +420,17 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         return
      end
      
-     -- PRESETS (X=8-11)
-     if x >= 8 and x <= 11 then
-        local slot = x - 7
+     -- TAPE LIBRARY (X=12)
+     if x == 12 then
+        if z == 1 then
+           params:set("save_all_tapes")
+        end
+        return
+     end
+     
+     -- PRESETS (X=7-10)
+     if x >= 7 and x <= 10 then
+        local slot = x - 6
         if z == 1 then
            state.preset_press_time[slot] = now
            
@@ -515,8 +517,10 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
          if z == 1 then
             state.grid_shift_active = true
             state.current_page = x - 6  -- Maps 13→7, 14→8, 15→9, 16→10
+            for i=1, 8 do state.fader_latched[i] = false end
          elseif z == 0 then
             state.grid_shift_active = false
+            for i=1, 8 do state.fader_latched[i] = false end
          end
          return
       end
@@ -704,10 +708,10 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         if z == 1 then
            state.track_sel = x
            state.grid_track_held = true
-           for i=1, 4 do state.fader_latched[i] = false end
+           for i=1, 8 do state.fader_latched[i] = false end
         elseif z == 0 then
            state.grid_track_held = false
-           for i=1, 4 do state.fader_latched[i] = false end
+           for i=1, 8 do state.fader_latched[i] = false end
         end
         return
      end
