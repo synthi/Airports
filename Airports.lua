@@ -655,45 +655,6 @@ function init()
   params:add{type = "file", id = "load_reel_3", name = "Load Tape 3", path = _path.audio, action = function(f) Loopers.load_file(3, f, state) end}
   params:add{type = "file", id = "load_reel_4", name = "Load Tape 4", path = _path.audio, action = function(f) Loopers.load_file(4, f, state) end}
   
-  -- PSET SAVE/LOAD HOOKS: save/load audio with presets
-  params.action.write = function(filename, name)
-     -- Save audio snapshots for tracks with content
-     local pset_dir = filename:match("^(.+)/") or _path.data .. "Airports/"
-     for i=1, 4 do
-        local len = state.tracks[i].rec_len or 0
-        if len > 0.1 then
-            local wav_name = pset_dir .. "/airports_trk_" .. i .. ".wav"
-            engine.buffer_write(i, wav_name, len)
-            print("PSET: saved tape " .. i .. " (" .. string.format("%.1f", len) .. "s)")
-        end
-     end
-  end
-
-  params.action.read = function(filename)
-     -- Load audio snapshots after pset loads
-     clock.run(function()
-        clock.sleep(0.3)
-        local pset_dir = filename:match("^(.+)/") or _path.data .. "Airports/"
-        local load_behavior = params:get("load_behavior") or 1  -- 1=Stop, 2=Play
-        for i=1, 4 do
-            local wav_name = pset_dir .. "/airports_trk_" .. i .. ".wav"
-            if util.file_exists(wav_name) then
-                engine.buffer_read(i, wav_name)
-                clock.sleep(0.2)
-                if load_behavior == 1 then
-                    state.tracks[i].state = 5  -- Stop
-                else
-                    state.tracks[i].state = 3  -- Play
-                end
-                state.tracks[i].is_dirty = false
-                state.tracks[i].file_path = wav_name
-                Loopers.refresh(i, state)
-                print("PSET: loaded tape " .. i)
-            end
-        end
-     end)
-  end
-
   Grid.init(state, g)
   
   -- Metros
