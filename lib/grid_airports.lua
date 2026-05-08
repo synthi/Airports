@@ -246,13 +246,19 @@ function Grid.redraw(state)
   g:refresh()
 end
 
--- Record events for sequencers
+-- Record events for sequencers (Avant_lab_V pattern: record in Armed AND Playing states)
 local function record_event(state, x, y, z)
   for i=1, 4 do
     local r = state.seq_slots[i]
-    if r.state == 2 then  -- Recording
+    -- State 1 = Armed (recording from first event), State 4 = Playing (overdub)
+    if r.state == 1 or r.state == 4 then
        local now = util.time()
-       local dt = now - r.start_time
+       local dt = 0
+       if r.state == 1 then
+          dt = now - (r.start_time or now)
+       else
+          dt = (now - (r.start_time or now)) % (r.duration or 1)
+       end
        table.insert(r.data, {dt=dt, x=x, y=y, z=z, tid=state.track_sel})
        table.sort(r.data, function(a,b) return a.dt < b.dt end)
     end
@@ -375,27 +381,33 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         return
      end
      
-     -- SEQUENCERS (X=3-6)
+     -- SEQUENCERS (X=3-6) — Avant_lab_V pattern: Arm→Record→Play→Overdub
      if x >= 3 and x <= 6 then
         local slot = x - 2
         if z == 1 then
            if state.seq_slots[slot].state == 0 then
-              state.seq_slots[slot].state = 1  -- Arm
-           elseif state.seq_slots[slot].state == 1 then
-              state.seq_slots[slot].state = 2  -- Record
+              -- Empty → Arm (start recording from first event)
+              state.seq_slots[slot].state = 1
               state.seq_slots[slot].start_time = now
               state.seq_slots[slot].data = {}
               state.seq_slots[slot].step = 1
               state.seq_slots[slot].duration = 0
-           elseif state.seq_slots[slot].state == 2 then
-              state.seq_slots[slot].state = 4  -- Play
+           elseif state.seq_slots[slot].state == 1 then
+              -- Armed/Recording → Stop recording, set duration
               state.seq_slots[slot].duration = now - state.seq_slots[slot].start_time
               if state.seq_slots[slot].duration < 0.001 then state.seq_slots[slot].duration = 1 end
-           elseif state.seq_slots[slot].state == 4 then
-              state.seq_slots[slot].state = 2  -- Re-record
-              state.seq_slots[slot].start_time = now
-              state.seq_slots[slot].data = {}
+              state.seq_slots[slot].state = 2
               state.seq_slots[slot].step = 1
+           elseif state.seq_slots[slot].state == 2 then
+              -- Stopped → Play (start playback)
+              state.seq_slots[slot].state = 4
+              state.seq_slots[slot].start_time = now
+              state.seq_slots[slot].step = 1
+           elseif state.seq_slots[slot].state == 4 then
+              -- Playing → Overdub (keep data, record new events on top)
+              state.seq_slots[slot].state = 4  -- Stay in 4 but flag overdub
+              -- Toggle overdub: re-arm recording within existing loop
+              state.seq_slots[slot].start_time = now
            end
         elseif z == 0 then
            -- Hold > 1s clears seq
@@ -404,11 +416,12 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
               state.seq_slots[slot].state = 0
               state.seq_slots[slot].data = {}
               state.seq_slots[slot].duration = 0
+              state.seq_slots[slot].step = 1
            end
         end
         -- Update sequencer_active flag
         local any_active = false
-        for i=1, 4 do if state.seq_slots[i].state == 4 then any_active = true end end
+        for i=1, 4 do if state.seq_slots[i].state == 2 or state.seq_slots[i].state == 4 then any_active = true end end
         state.sequencer_active = any_active
         return
      end

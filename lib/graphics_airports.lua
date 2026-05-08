@@ -110,7 +110,6 @@ end
 -- ============================================================
 local function draw_tricks_page(state)
    screen.clear()
-   screen.level(4); screen.move(64, 8); screen.text_center("TRICKS CONFIG")
    
     local sel = state.config_page_track or state.track_sel
     local t = state.tracks[sel]
@@ -118,8 +117,8 @@ local function draw_tricks_page(state)
    local cursor = state.config_page_cursor
    
    if config_type == "jump" then
-      -- Jump config
-      screen.level(3); screen.move(0, 20); screen.text("TRACK: " .. sel)
+      -- Jump config — header shows specific name + track
+      screen.level(4); screen.move(64, 8); screen.text_center("JUMP CONFIG — TRK " .. sel)
       
       local items = {"MODE", "RATE (FREE)", "DIV (SYNC)", "RND LPOS"}
       local values = {
@@ -139,21 +138,20 @@ local function draw_tricks_page(state)
       screen.level(3); screen.move(0, 60); screen.text("K3=EXIT  E2=NAV  E3=VAL")
       
    elseif config_type == "random" then
-      -- Random config
-      screen.level(3); screen.move(0, 20); screen.text("RANDOM SETUP")
+      -- Random config — per-track page (like jump)
+      screen.level(4); screen.move(64, 8); screen.text_center("RANDOM CONFIG — TRK " .. sel)
       
-      local items = {"SPEED", "DEGRADE", "LOOP POS", "EQ/FILTER", "VOLUME", "TARGET"}
+      local items = {"SPEED", "DEGRADE", "LOOP POS", "EQ/FILTER", "VOLUME"}
       local values = {
          (t.rnd_speed and "ON" or "OFF"),
          (t.rnd_deg and "ON" or "OFF"),
          (t.rnd_loop and "ON" or "OFF"),
          (t.rnd_eq and "ON" or "OFF"),
-         (t.rnd_vol and "ON" or "OFF"),
-         (state.rnd_apply_to == 0 and "ALL" or "CURRENT")
+         (t.rnd_vol and "ON" or "OFF")
       }
       
       for i=1, #items do
-         local y = 25 + (i * 6)
+         local y = 28 + (i * 8)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
@@ -162,8 +160,8 @@ local function draw_tricks_page(state)
       screen.level(3); screen.move(0, 62); screen.text("K3=EXIT  E2=NAV  E3=TOG")
       
    elseif config_type == "warp" then
-      -- Warp config
-      screen.level(3); screen.move(0, 20); screen.text("WARP CONFIG")
+      -- Warp config — specific header, no generic TRICKS CONFIG
+      screen.level(4); screen.move(64, 8); screen.text_center("WARP CONFIG")
       
       local mode_txt = (state.warp_mode == 0) and "MULTIPLY" or "DIVIDE"
       local target_txt = (state.warp_target == 0) and "ALL" or "CURRENT"
@@ -177,7 +175,7 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 28 + (i * 8)
+         local y = 20 + (i * 8)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
@@ -201,32 +199,35 @@ local function draw_tape_page(state, shift)
    local t = state.tracks[sel]
    local now = util.time()
    
-   -- Header
-   screen.level(4); screen.move(64, 8); screen.text_center("AIRPORTS — TRACK " .. sel)
+   -- Header: "TAPE X" top right
+   screen.level(4); screen.move(128, 8); screen.text_right("TAPE " .. sel)
    
-    -- Encoder labels
-    if state.grid_track_held then
-       -- Track Held mode (tertiary)
-       draw_left_e1("REC LVL", string.format("%.1fdB", t.rec_level or -3.0))
-       screen.level(3); screen.move(55, 53); screen.text("INPUT SRC")
-       local src_names = {"INPUT","PRE REV","POST REV","TRK1","TRK2","TRK3","TRK4"}
-       screen.level(15); screen.move(55, 60); screen.text(src_names[(t.src_sel or 0) + 1])
-    elseif shift then
-       -- Shift mode (K1 held): E1=SPEED, E2=START, E3=END
-       local speed = t.speed or 1
-       local dir_sym = speed < 0 and "<<" or ">>"
-       draw_left_e1("SPEED", string.format("%s %.2f", dir_sym, math.abs(speed)))
-       local start_p = floor((t.loop_start or 0) * 100)
-       local end_p = floor((t.loop_end or 1) * 100)
-       draw_right_param_pair("START", start_p .. "%", "END", end_p .. "%")
-    else
-       -- Normal mode: E1=LENGTH, E2=DEGRADE, E3=DUB
-       draw_left_e1("LENGTH", string.format("%.2fs", params:get("l"..sel.."_length")))
-       screen.level(3); screen.move(55, 53); screen.text("DEGRADE")
-       screen.level(15); screen.move(55, 60); screen.text(string.format("%.0f%%", (t.wow_macro or 0)*100))
-       screen.level(3); screen.move(95, 53); screen.text("DUB")
-       screen.level(15); screen.move(95, 60); screen.text(string.format("%.0f%%", (t.overdub or 0.5)*100))
-    end
+     -- Encoder labels
+     if state.grid_track_held then
+        -- Track Held mode (tertiary)
+        draw_left_e1("REC LVL", string.format("%.1fdB", t.rec_level or -3.0))
+        screen.level(3); screen.move(55, 53); screen.text("INPUT SRC")
+        local src_names = {"INPUT","PRE REV","POST REV","TRK1","TRK2","TRK3","TRK4"}
+        screen.level(15); screen.move(55, 60); screen.text(src_names[(t.src_sel or 0) + 1])
+     elseif shift then
+        -- Shift mode (K1 held): E1=SPEED, E2=START, E3=END
+        local speed = t.speed or 1
+        local dir_sym = speed < 0 and "<<" or ">>"
+        draw_left_e1("SPEED", string.format("%s %.2f", dir_sym, math.abs(speed)))
+        local start_p = floor((t.loop_start or 0) * 100)
+        local end_p = floor((t.loop_end or 1) * 100)
+        draw_right_param_pair("START", start_p .. "%", "END", end_p .. "%")
+     else
+        -- Normal mode: E1=LENGTH, E2=DEGRADE, E3=DUB
+        draw_left_e1("LENGTH", string.format("%.2fs", params:get("l"..sel.."_length")))
+        screen.level(3); screen.move(55, 53); screen.text("DEGRADE")
+        screen.level(15); screen.move(55, 60); screen.text(string.format("%.0f%%", (t.wow_macro or 0)*100))
+        screen.level(3); screen.move(95, 53); screen.text("DUB")
+        screen.level(15); screen.move(95, 60); screen.text(string.format("%.0f%%", (t.overdub or 0.5)*100))
+     end
+   
+   -- E4 label top right, below TAPE X header
+   screen.level(3); screen.move(128, 16); screen.text_right("E4:REC LVL")
    
    draw_goniometer(state)
    
@@ -253,8 +254,6 @@ local function draw_tape_page(state, shift)
       screen.move(x_base + 12 + bar_w, y_off); screen.text_right(len_txt)
    end
    
-   -- Label dinámico para E4 (Fates)
-   screen.level(3); screen.move(0, 62); screen.text("E4=REC LVL")
    
    draw_popup(state)
    screen.update()

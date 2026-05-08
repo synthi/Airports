@@ -248,6 +248,37 @@ function Loopers.randomize_track(idx, state)
    Loopers.refresh(idx, state)
 end
 
+function Loopers.stop_with_fade(idx, state)
+   local t = state.tracks[idx]
+   if not t then return end
+   local fade_time = t.fade_out or 0
+   if fade_time < 0.05 then
+      -- Instant stop
+      t.state = 5
+      t.vol = t.vol  -- keep vol
+      Loopers.refresh(idx, state)
+   else
+      -- Gradual fade out over fade_time seconds
+      local start_vol = t.vol or 0.833
+      local start_time = util.time()
+      clock.run(function()
+         while true do
+            local elapsed = util.time() - start_time
+            local progress = elapsed / fade_time
+            if progress >= 1.0 then
+               t.vol = start_vol  -- restore original vol
+               t.state = 5
+               Loopers.refresh(idx, state)
+               break
+            end
+            t.vol = start_vol * (1.0 - progress)
+            Loopers.refresh(idx, state)
+            clock.sleep(0.02)
+         end
+      end)
+   end
+end
+
 function Loopers.jump(idx, state)
    local t = state.tracks[idx]
    if not t then return end

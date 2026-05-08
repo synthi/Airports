@@ -130,7 +130,7 @@ function enc(n, d)
         if config_type == "jump" then
            state.config_page_cursor = util.clamp(cursor + d, 1, 4)
         elseif config_type == "random" then
-           state.config_page_cursor = util.clamp(cursor + d, 1, 6)
+           state.config_page_cursor = util.clamp(cursor + d, 1, 5)
         elseif config_type == "warp" then
            state.config_page_cursor = util.clamp(cursor + d, 1, 4)
         end
@@ -152,8 +152,7 @@ function enc(n, d)
            elseif cursor == 2 then t.rnd_deg = not t.rnd_deg
            elseif cursor == 3 then t.rnd_loop = not t.rnd_loop
            elseif cursor == 4 then t.rnd_eq = not t.rnd_eq
-           elseif cursor == 5 then t.rnd_vol = not t.rnd_vol
-           elseif cursor == 6 then state.rnd_apply_to = (state.rnd_apply_to + 1) % 2 end
+           elseif cursor == 5 then t.rnd_vol = not t.rnd_vol end
         elseif config_type == "warp" then
            if cursor == 1 then
               state.warp_mode = (state.warp_mode + math.abs(d)) % 2
@@ -559,6 +558,7 @@ function init()
   -- Create directories
   if util.file_exists(_path.data .. "Airports") == false then util.make_dir(_path.data .. "Airports") end
   if util.file_exists(_path.audio .. "Airports") == false then util.make_dir(_path.audio .. "Airports") end
+  if util.file_exists(_path.audio .. "Airports/snapshots") == false then util.make_dir(_path.audio .. "Airports/snapshots") end
   
   -- ========================
   -- PARAMETERS
@@ -606,7 +606,7 @@ function init()
   
   -- Track parameters (4 tracks)
   for i=1, 4 do
-    params:add_group("TRACK " .. i, 15)
+    params:add_group("TRACK " .. i, 16)
     params:add{type = "control", id = "l"..i.."_speed", name = "Speed", controlspec = controlspec.new(-2.0, 2.0, 'lin', 0.002, 1.0), formatter = function(p) return string.format("x%.2f", p:get()) end, action = function(x) state.tracks[i].speed = x; Loopers.refresh(i, state) end}
     params:add{type = "control", id = "l"..i.."_vol", name = "Volume", controlspec = controlspec.new(0, 1.0, 'lin', 0.001, 0.833), formatter = fmt_db, action = function(x) state.tracks[i].vol = x; Loopers.refresh(i, state) end}
     params:add{type = "control", id = "l"..i.."_dub", name = "Overdub", controlspec = controlspec.new(0, 1.11, 'lin', 0.001, 1.0), formatter = fmt_percent, action = function(x) state.tracks[i].overdub = x; Loopers.refresh(i, state) end}
@@ -630,8 +630,70 @@ function init()
     params:add{type = "control", id = "l"..i.."_width", name = "Width", controlspec = controlspec.new(0, 2, 'lin', 0.01, 1), formatter = fmt_percent, action = function(x) state.tracks[i].l_width = x; Loopers.refresh(i, state) end}
     -- Hidden params for 16n layer shift (brake continuo, mapped from 16n faders 5-8)
     params:add{type = "control", id = "l"..i.."_brake16", name = "Brake 16n", controlspec = controlspec.new(0, 1, 'lin', 0.01, 0), formatter = fmt_percent, action = function(x) state.tracks[i].brake_amt = x; Loopers.refresh(i, state) end}
+    -- Fade out time per track
+    params:add{type = "control", id = "l"..i.."_fadeout", name = "Fade Out", controlspec = controlspec.new(0, 30.0, 'lin', 0.1, 0.0, "s"), formatter = fmt_sec, action = function(x) state.tracks[i].fade_out = x end}
   end
+
+  -- TAPE LIBRARY
+  params:add_group("TAPE LIBRARY", 5)
+  params:add{type = "trigger", id = "save_all_tapes", name = "Save All Tapes", action = function()
+     for i=1, 4 do
+        local len = state.tracks[i].rec_len or 0
+        if len > 0.1 then
+            local name = _path.audio .. "Airports/snapshots/tape_" .. i .. "_" .. os.date("%y%m%d%H%M") .. ".wav"
+            engine.buffer_write(i, name, len)
+            state.tape_filenames[i] = name:match("^.+/(.+)$")
+            state.tape_msg_timers[i] = util.time() + 2.0
+            state.tracks[i].is_dirty = false
+            state.tracks[i].file_path = name
+            print("Tape " .. i .. " saved: " .. name)
+        end
+     end
+  end}
+  params:add{type = "file", id = "load_reel_1", name = "Load Tape 1", path = _path.audio, action = function(f) Loopers.load_file(1, f, state) end}
+  params:add{type = "file", id = "load_reel_2", name = "Load Tape 2", path = _path.audio, action = function(f) Loopers.load_file(2, f, state) end}
+  params:add{type = "file", id = "load_reel_3", name = "Load Tape 3", path = _path.audio, action = function(f) Loopers.load_file(3, f, state) end}
+  params:add{type = "file", id = "load_reel_4", name = "Load Tape 4", path = _path.audio, action = function(f) Loopers.load_file(4, f, state) end}
   
+  -- PSET SAVE/LOAD HOOKS: save/load audio with presets
+  params.action.write = function(filename, name)
+     -- Save audio snapshots for tracks with content
+     local pset_dir = filename:match("^(.+)/") or _path.data .. "Airports/"
+     for i=1, 4 do
+        local len = state.tracks[i].rec_len or 0
+        if len > 0.1 then
+            local wav_name = pset_dir .. "/airports_trk_" .. i .. ".wav"
+            engine.buffer_write(i, wav_name, len)
+            print("PSET: saved tape " .. i .. " (" .. string.format("%.1f", len) .. "s)")
+        end
+     end
+  end
+
+  params.action.read = function(filename)
+     -- Load audio snapshots after pset loads
+     clock.run(function()
+        clock.sleep(0.3)
+        local pset_dir = filename:match("^(.+)/") or _path.data .. "Airports/"
+        local load_behavior = params:get("load_behavior") or 1  -- 1=Stop, 2=Play
+        for i=1, 4 do
+            local wav_name = pset_dir .. "/airports_trk_" .. i .. ".wav"
+            if util.file_exists(wav_name) then
+                engine.buffer_read(i, wav_name)
+                clock.sleep(0.2)
+                if load_behavior == 1 then
+                    state.tracks[i].state = 5  -- Stop
+                else
+                    state.tracks[i].state = 3  -- Play
+                end
+                state.tracks[i].is_dirty = false
+                state.tracks[i].file_path = wav_name
+                Loopers.refresh(i, state)
+                print("PSET: loaded tape " .. i)
+            end
+        end
+     end)
+  end
+
   Grid.init(state, g)
   
   -- Metros

@@ -54,7 +54,8 @@ function Globals.new()
       rnd_deg = true,
       rnd_loop = false,
       rnd_eq = false,
-      rnd_vol = false
+      rnd_vol = false,
+      fade_out = 0.0
     }
   end
   
