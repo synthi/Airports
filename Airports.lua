@@ -31,13 +31,16 @@ end
 
 local function set_p(id, val)
     local eng_cmd = id
+    local eng_val = val
     if id == "bus_thresh" then eng_cmd = "comp_thresh"
     elseif id == "bus_ratio" then eng_cmd = "comp_ratio"
     elseif id == "bus_drive" then eng_cmd = "comp_drive"
-    elseif id == "master_vol" then eng_cmd = "main_mon"
+    elseif id == "master_vol" then 
+        eng_cmd = "main_mon"
+        eng_val = util.linlin(-60, 12, 0, 1, val)
     end
     
-    if engine[eng_cmd] then engine[eng_cmd](val) end
+    if engine[eng_cmd] then engine[eng_cmd](eng_val) end
     state.str_cache[id] = params:string(id)
 end
 
@@ -605,7 +608,7 @@ function init()
   params:add_separator("AIRPORTS")
   
   params:add_group("GLOBAL", 5)
-  params:add{type = "control", id = "master_vol", name = "Master Volume", controlspec = controlspec.new(0, 1, 'lin', 0.001, 0.833), formatter = fmt_db, action = function(x) set_p("master_vol", x) end}
+  params:add{type = "control", id = "master_vol", name = "Master Volume", controlspec = controlspec.new(-60, 12, 'lin', 0.1, 0, "dB"), formatter = fmt_raw_db, action = function(x) set_p("master_vol", x) end}
   params:add{type = "control", id = "fader_slew", name = "Fader Slew", controlspec = controlspec.new(0.01, 10.0, 'exp', 0.01, 0.05, "s"), formatter = fmt_sec, action = function(x) set_p("fader_slew", x) end}
   params:add{type = "control", id = "preset_morph", name = "Preset Morph", controlspec = controlspec.new(0.01, 30.0, 'exp', 0.01, 2.0, "s"), formatter = fmt_sec}
   params:add{type = "option", id = "load_behavior", name = "Load Behavior", options = {"Stop", "Play"}, default = 1}
@@ -627,7 +630,7 @@ function init()
   params:add{type = "control", id = "reverb_damp", name = "Reverb Damp", controlspec = controlspec.new(100, 20000, 'exp', 10, 4600, "Hz"), formatter = fmt_hz, action = function(x) engine.reverb_damp(x) end}
   
   params:add_group("MONITOR", 1)
-  params:add{type = "control", id = "monitor_amp", name = "Monitor Level", controlspec = controlspec.new(-60, 6, 'lin', 0.1, -60, "dB"), formatter = fmt_raw_db, action = function(x) engine.monitor_amp(x) end}
+  params:add{type = "control", id = "monitor_amp", name = "Monitor Level", controlspec = controlspec.new(-60, 6, 'lin', 0.1, 0, "dB"), formatter = fmt_raw_db, action = function(x) engine.monitor_amp(x) end}
   
   params:add_group("MASTER", 6)
   params:add{type = "control", id = "bus_thresh", name = "Comp Thresh", controlspec = controlspec.new(-60.0, 0.0, 'lin', 0.1, -12.0, "dB"), formatter = fmt_raw_db, action = function(x) set_p("bus_thresh", x) end}
@@ -665,7 +668,7 @@ function init()
     params:add{type = "control", id = "l"..i.."_start", name = "Loop Start", controlspec = controlspec.new(0, 1.0, 'lin', 0.001, 0.0), formatter = fmt_percent, action = function(x) state.tracks[i].loop_start = x; Loopers.refresh(i, state) end}
     params:add{type = "control", id = "l"..i.."_end", name = "Loop End", controlspec = controlspec.new(0, 1.0, 'lin', 0.001, 1.0), formatter = fmt_percent, action = function(x) state.tracks[i].loop_end = x; Loopers.refresh(i, state) end}
     params:add{type = "option", id = "l"..i.."_src", name = "Input Source", options = SRC_OPTIONS, default = 1, action = function(x) state.tracks[i].src_sel = x - 1; Loopers.refresh(i, state) end}
-    params:add{type = "control", id = "l"..i.."_rec_lvl", name = "Rec Level", controlspec = controlspec.new(-60, 12, 'lin', 0.1, -3.0, "dB"), formatter = fmt_raw_db, action = function(x) state.tracks[i].rec_level = x; Loopers.refresh(i, state) end}
+    params:add{type = "control", id = "l"..i.."_rec_lvl", name = "Rec Level", controlspec = controlspec.new(-60, 12, 'lin', 0.1, 0, "dB"), formatter = fmt_raw_db, action = function(x) state.tracks[i].rec_level = x; Loopers.refresh(i, state) end}
     params:add{type = "control", id = "l"..i.."_low", name = "Low Shelf", controlspec = controlspec.new(-18, 18, 'lin', 0.1, 0.0, "dB"), formatter = fmt_raw_db, action = function(x) state.tracks[i].l_low = x; Loopers.refresh(i, state) end}
     params:add{type = "control", id = "l"..i.."_high", name = "High Shelf", controlspec = controlspec.new(-18, 18, 'lin', 0.1, 0.0, "dB"), formatter = fmt_raw_db, action = function(x) state.tracks[i].l_high = x; Loopers.refresh(i, state) end}
     params:add{type = "control", id = "l"..i.."_filter", name = "DJ Filter", controlspec = controlspec.new(0, 1, 'lin', 0.01, 0.5), formatter = fmt_percent, action = function(x) state.tracks[i].l_filter = x; Loopers.refresh(i, state) end}

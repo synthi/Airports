@@ -122,7 +122,7 @@ Engine_Airports : CroneEngine {
              buf1=0, buf2=0, buf3=0, buf4=0,
              t1_bus=0, t2_bus=0, t3_bus=0, t4_bus=0,
               main_mon=0.833,
-              monitor_amp=-60,
+              monitor_amp=0,
               comp_thresh=0.5, comp_ratio=2.0, comp_drive=0.0,
               bass_focus_mode=0, limiter_ceil=0.0, balance=0.0,
              l1_rec=0, l1_play=0, l1_vol=0, l1_speed=1, l1_start=0, l1_end=1, l1_src=0, l1_dub=0.5, l1_deg=0, l1_brake=0, l1_rec_lvl=0, l1_length=60, l1_seek_pos=0, t_l1_seek_trig=0,

@@ -511,7 +511,7 @@ local function draw_master_page(state, shift)
       local bf_names = {"OFF", "50Hz", "100Hz", "200Hz"}
       
       screen.level(3); screen.move(0, 20); screen.text("MASTER")
-      screen.level(15); screen.move(40, 20); screen.text(string.format("%.1fdB", util.linlin(0, 1, -60, 12, mv)))
+      screen.level(15); screen.move(40, 20); screen.text(string.format("%.1fdB", mv))
       
       screen.level(3); screen.move(0, 30); screen.text("BASS")
       screen.level(15); screen.move(30, 30); screen.text(bf_names[bf + 1])
