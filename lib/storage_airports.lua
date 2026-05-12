@@ -52,6 +52,19 @@ function Storage.load_data(state, pset_id)
    if util.file_exists(filename) then
       local pack = tab.load(filename)
       if pack then
+         -- Sanitize presets data
+         if pack.presets_data then
+            for i=1, 4 do
+               if pack.presets_status and pack.presets_status[i] == 0 then
+                  pack.presets_data[i] = {}
+               end
+               if pack.presets_data[i] and not pack.presets_data[i].tracks then
+                  pack.presets_data[i] = {}
+                  if pack.presets_status then pack.presets_status[i] = 0 end
+               end
+            end
+         end
+         
          -- Restore presets
          state.presets_data = pack.presets_data or state.presets_data
          state.presets_status = pack.presets_status or state.presets_status
@@ -85,7 +98,8 @@ function Storage.load_data(state, pset_id)
          end
          
          -- Restore track state
-         local load_behavior = params:get("load_behavior") or 1  -- 1=Stop, 2=Play
+         local load_behavior_audio = params:get("load_behavior_audio") or 1  -- 1=Stop, 2=Play
+         local load_behavior = params:get("load_behavior") or 1
          
          if pack.tracks then
             for i=1, 4 do
@@ -142,16 +156,16 @@ function Storage.load_data(state, pset_id)
                      state.tracks[i].is_dirty = false
                      state.tape_filenames[i] = loaded_t.file_path:match("^.+/(.+)$")
                      
-                     if load_behavior == 2 then
-                        -- Play on load
-                        if loaded_t.state == 2 or loaded_t.state == 3 or loaded_t.state == 4 then
-                           state.tracks[i].state = 3  -- Play
-                        else
-                           state.tracks[i].state = 5  -- Stop
-                        end
-                     else
-                        state.tracks[i].state = 5  -- Stop
-                     end
+                if load_behavior_audio == 2 then
+                       -- Play on load
+                       if loaded_t.state == 2 or loaded_t.state == 3 or loaded_t.state == 4 then
+                          state.tracks[i].state = 3  -- Play
+                       else
+                          state.tracks[i].state = 5  -- Stop
+                       end
+                    else
+                       state.tracks[i].state = 5  -- Stop
+                    end
                   else
                      state.tracks[i].state = 1  -- Empty
                      state.tracks[i].file_path = nil

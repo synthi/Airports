@@ -79,14 +79,10 @@ end
 
 -- Draw row 5: Track select + Speed ribbon
 local function draw_row5(state)
-  local now = util.time()
-  local sel_pulse = math.floor(util.linlin(-1, 1, 10, MAX_BRIGHT, math.sin(now * 8)))
-  
-  -- Track select (X=1-4)
+  -- Track select (X=1-4) — fixed brightness, no animation
   for i=1, 4 do
-     local b = 3
-     if state.track_sel == i then b = sel_pulse end
-     if state.grid_track_held and state.track_sel == i then b = MAX_BRIGHT end
+     local b = DIM_BRIGHT
+     if state.track_sel == i then b = MAX_BRIGHT end
      led_buf(i, 5, b)
   end
   
@@ -178,11 +174,11 @@ local function draw_row8(state)
   local now = util.time()
   local pulse_seq = math.floor(math.sin(now * 5) * 4 + 7)
   
-  -- MOM (X=1)
-  led_buf(1, 8, state.grid_momentary_mode and MAX_BRIGHT or 4)
+  -- MOM (X=1) — dim fixed, bright when active
+  led_buf(1, 8, state.grid_momentary_mode and MAX_BRIGHT or 2)
   
-  -- SHIFT (X=2)
-  led_buf(2, 8, state.grid_shift_active and MAX_BRIGHT or 0)
+  -- SHIFT (X=2) — bright when active, dim when inactive
+  led_buf(2, 8, state.grid_shift_active and MAX_BRIGHT or DIM_BRIGHT)
   
   -- Sequencers (X=3-6)
   for i=1, 4 do
@@ -205,8 +201,8 @@ local function draw_row8(state)
      led_buf(x, 8, b)
   end
   
-  -- TAPE LIBRARY (X=12)
-  led_buf(12, 8, 4)
+  -- TAPE LIBRARY (X=12) — bright when on page 6
+  led_buf(12, 8, state.current_page == 6 and MAX_BRIGHT or 4)
   
   -- Page selects (X=13-16)
   for i=1, 4 do
@@ -420,10 +416,10 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         return
      end
      
-     -- TAPE LIBRARY (X=12)
+     -- TAPE LIBRARY (X=12) — Navigate to page 6 (TAPE LIBRARY page)
      if x == 12 then
         if z == 1 then
-           params:set("save_all_tapes")
+           state.current_page = 6
         end
         return
      end

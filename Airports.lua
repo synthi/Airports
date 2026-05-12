@@ -34,6 +34,7 @@ local function set_p(id, val)
     if id == "bus_thresh" then eng_cmd = "comp_thresh"
     elseif id == "bus_ratio" then eng_cmd = "comp_ratio"
     elseif id == "bus_drive" then eng_cmd = "comp_drive"
+    elseif id == "master_vol" then eng_cmd = "main_mon"
     end
     
     if engine[eng_cmd] then engine[eng_cmd](val) end
@@ -53,7 +54,7 @@ local fader_map = {
     [5] = "l1_filter", [6] = "l2_filter", [7] = "l3_filter", [8] = "l4_filter",
     [9] = "reverb_mix", [10] = "reverb_time",
     [11] = "noise_amp", [12] = "global_lpf",
-    [13] = "main_mon", [14] = "bus_thresh",
+    [13] = "master_vol", [14] = "bus_thresh",
     [15] = "bus_ratio", [16] = "balance"
 }
 
@@ -62,7 +63,7 @@ local fader_names = {
     [5] = "TRK 1 FLT", [6] = "TRK 2 FLT", [7] = "TRK 3 FLT", [8] = "TRK 4 FLT",
     [9] = "REVERB MIX", [10] = "REVERB TIME",
     [11] = "NOISE LVL", [12] = "GLOBAL LPF",
-    [13] = "MAIN VOL", [14] = "COMP THRESH",
+    [13] = "MASTER VOL", [14] = "COMP THRESH",
     [15] = "COMP RATIO", [16] = "BALANCE"
 }
 
@@ -185,6 +186,14 @@ function enc(n, d)
      return
   end
   
+  -- TAPE LIBRARY page (6)
+  if page == 6 and not state.config_page_active then
+     if n == 2 then
+        state.tape_library_sel = util.clamp((state.tape_library_sel or 1) + d, 1, 4)
+     end
+     return
+  end
+  
   if page == 7 then
      -- TAPE page
      -- E4 = REC LEVEL (always, in all modes)
@@ -234,11 +243,13 @@ function enc(n, d)
   elseif page == 10 then
      -- MASTER page
      if shift then
-        if n == 1 then params:delta("limiter_ceil", d)
+        -- Shift: Master Vol, Bass Focus, Comp Drive
+        if n == 1 then params:delta("master_vol", d)
         elseif n == 2 then params:delta("bass_focus", d)
         elseif n == 3 then params:delta("bus_drive", d) end
      else
-        if n == 1 then params:delta("main_mon", d)
+        -- No-shift: Monitor, Thresh, Ratio
+        if n == 1 then params:delta("monitor_amp", d)
         elseif n == 2 then params:delta("bus_thresh", d)
         elseif n == 3 then params:delta("bus_ratio", d) end
      end
@@ -276,6 +287,33 @@ function key(n, z)
   end
   
   -- Normal key functions per page
+  
+  -- TAPE LIBRARY page (6)
+  if state.current_page == 6 and not state.config_page_active then
+     local fileselect = require 'fileselect'
+     if n == 2 and z == 1 then
+        -- K2: Load tape
+        state.file_selector_active = true
+        fileselect.enter("/home/we/dust/audio/", function(file)
+           state.file_selector_active = false
+           if file ~= "cancel" then Loopers.load_file(state.tape_library_sel, file, state) end
+        end)
+     elseif n == 3 and z == 1 then
+        -- K3: Save tape
+        local sel = state.tape_library_sel
+        local len = state.tracks[sel].rec_len or 0
+        if len > 0 then
+           local name = _path.audio .. "Airports/reel_" .. sel .. "_" .. os.date("%y%m%d%H%M") .. ".wav"
+           engine.buffer_write(sel, name, len)
+           state.tape_filenames[sel] = name:match("^.+/(.+)$")
+           state.tape_msg_timers[sel] = util.time() + 2.0
+           state.tracks[sel].file_path = name
+           print("Tape " .. sel .. " saved: " .. name)
+        end
+     end
+     return
+  end
+  
   if state.current_page == 9 then
      -- AMBIENT page: K2/K3 cycle noise type
      if n == 2 and z == 1 then
@@ -567,10 +605,11 @@ function init()
   params:add_separator("AIRPORTS")
   
   params:add_group("GLOBAL", 5)
-  params:add{type = "control", id = "main_mon", name = "Main Monitor", controlspec = controlspec.new(0, 1, 'lin', 0.001, 0.833), formatter = fmt_db, action = function(x) set_p("main_mon", x) end}
+  params:add{type = "control", id = "master_vol", name = "Master Volume", controlspec = controlspec.new(0, 1, 'lin', 0.001, 0.833), formatter = fmt_db, action = function(x) set_p("master_vol", x) end}
   params:add{type = "control", id = "fader_slew", name = "Fader Slew", controlspec = controlspec.new(0.01, 10.0, 'exp', 0.01, 0.05, "s"), formatter = fmt_sec, action = function(x) set_p("fader_slew", x) end}
   params:add{type = "control", id = "preset_morph", name = "Preset Morph", controlspec = controlspec.new(0.01, 30.0, 'exp', 0.01, 2.0, "s"), formatter = fmt_sec}
   params:add{type = "option", id = "load_behavior", name = "Load Behavior", options = {"Stop", "Play"}, default = 1}
+  params:add{type = "option", id = "load_behavior_audio", name = "Load: Audio", options = {"Stop", "Play"}, default = 1}
   params:add{type = "control", id = "scope_zoom", name = "Scope Zoom", controlspec = controlspec.new(1, 10, 'lin', 0.1, 4)}
   
   params:add_group("INPUT", 3)
@@ -586,6 +625,9 @@ function init()
   params:add{type = "control", id = "reverb_mix", name = "Reverb Mix", controlspec = controlspec.new(0, 1, 'lin', 0.001, 0.25), formatter = fmt_percent, action = function(x) engine.reverb_mix(x) end}
   params:add{type = "control", id = "reverb_time", name = "Reverb Time", controlspec = controlspec.new(0.1, 30.0, 'exp', 0.1, 4.2, "s"), formatter = fmt_sec, action = function(x) engine.reverb_time(x) end}
   params:add{type = "control", id = "reverb_damp", name = "Reverb Damp", controlspec = controlspec.new(100, 20000, 'exp', 10, 4600, "Hz"), formatter = fmt_hz, action = function(x) engine.reverb_damp(x) end}
+  
+  params:add_group("MONITOR", 1)
+  params:add{type = "control", id = "monitor_amp", name = "Monitor Level", controlspec = controlspec.new(-60, 6, 'lin', 0.1, -60, "dB"), formatter = fmt_raw_db, action = function(x) engine.monitor_amp(x) end}
   
   params:add_group("MASTER", 6)
   params:add{type = "control", id = "bus_thresh", name = "Comp Thresh", controlspec = controlspec.new(-60.0, 0.0, 'lin', 0.1, -12.0, "dB"), formatter = fmt_raw_db, action = function(x) set_p("bus_thresh", x) end}

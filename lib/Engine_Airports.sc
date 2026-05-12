@@ -121,9 +121,10 @@ Engine_Airports : CroneEngine {
              bus_proc_in=0, bus_reverb_send=0, bus_reverb_return=0,
              buf1=0, buf2=0, buf3=0, buf4=0,
              t1_bus=0, t2_bus=0, t3_bus=0, t4_bus=0,
-             main_mon=0.833,
-             comp_thresh=0.5, comp_ratio=2.0, comp_drive=0.0,
-             bass_focus_mode=0, limiter_ceil=0.0, balance=0.0,
+              main_mon=0.833,
+              monitor_amp=-60,
+              comp_thresh=0.5, comp_ratio=2.0, comp_drive=0.0,
+              bass_focus_mode=0, limiter_ceil=0.0, balance=0.0,
              l1_rec=0, l1_play=0, l1_vol=0, l1_speed=1, l1_start=0, l1_end=1, l1_src=0, l1_dub=0.5, l1_deg=0, l1_brake=0, l1_rec_lvl=0, l1_length=60, l1_seek_pos=0, t_l1_seek_trig=0,
              l2_rec=0, l2_play=0, l2_vol=0, l2_speed=1, l2_start=0, l2_end=1, l2_src=0, l2_dub=0.5, l2_deg=0, l2_brake=0, l2_rec_lvl=0, l2_length=60, l2_seek_pos=0, t_l2_seek_trig=0,
              l3_rec=0, l3_play=0, l3_vol=0, l3_speed=1, l3_start=0, l3_end=1, l3_src=0, l3_dub=0.5, l3_deg=0, l3_brake=0, l3_rec_lvl=0, l3_length=60, l3_seek_pos=0, t_l3_seek_trig=0,
@@ -316,7 +317,7 @@ Engine_Airports : CroneEngine {
             });
 
             // Master
-            master_out = loop_outputs_sum;
+            master_out = loop_outputs_sum + (proc_in * monitor_amp.dbamp);
             main_mon_amp = LinLin.kr(main_mon, 0, 1, -60, 12).dbamp * (main_mon > 0.001);
 
             // Send to reverb (before master processing)
@@ -393,6 +394,7 @@ Engine_Airports : CroneEngine {
         this.addCommand("l_speed", "if", { |msg| synth_loopers.set(("l" ++ msg[1] ++ "_speed").asSymbol, msg[2]); });
 
         this.addCommand("main_mon", "f", { |msg| synth_loopers.set(\main_mon, msg[1]); });
+        this.addCommand("monitor_amp", "f", { |msg| synth_loopers.set(\monitor_amp, msg[1]); });
         this.addCommand("comp_thresh", "f", { |msg| synth_loopers.set(\comp_thresh, msg[1]); });
         this.addCommand("comp_ratio", "f", { |msg| synth_loopers.set(\comp_ratio, msg[1]); });
         this.addCommand("comp_drive", "f", { |msg| synth_loopers.set(\comp_drive, msg[1]); });

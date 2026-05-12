@@ -191,6 +191,62 @@ local function draw_tricks_page(state)
 end
 
 -- ============================================================
+-- PAGE 6: TAPE LIBRARY (Load/save tapes)
+-- ============================================================
+local function draw_tape_library_page(state)
+   screen.clear()
+   screen.level(4); screen.move(64, 8); screen.text_center("TAPE LIBRARY")
+   
+   local sel = state.tape_library_sel or 1
+   local now = util.time()
+   
+   -- Reel graphics + info for each track
+   for i=1, 4 do
+      local y_base = 14 + ((i-1) * 12)
+      local is_sel = (i == sel)
+      
+      -- Reel circle
+      local phase = now * (0.5 + i * 0.3) + i
+      screen.level(is_sel and 8 or 3)
+      screen.circle(8, y_base + 5, 5); screen.fill()
+      screen.level(1); screen.circle(8, y_base + 5, 2); screen.fill()
+      
+      -- Track number
+      screen.level(is_sel and 15 or 4)
+      screen.move(16, y_base + 4); screen.text(i)
+      
+      -- Info
+      local t = state.tracks[i]
+      local len = t.rec_len or 0
+      local fn = state.tape_filenames[i]
+      
+      if len > 0.01 then
+         screen.level(is_sel and 15 or 8)
+         screen.move(24, y_base + 4); screen.text(string.format("%.1fs", len))
+         if fn then
+            screen.font_size(8)
+            screen.level(3); screen.move(24, y_base + 10); screen.text(fn:sub(1, 20))
+         end
+      else
+         screen.level(3)
+         screen.move(24, y_base + 4); screen.text("[EMPTY]")
+      end
+      
+      -- Status
+      if is_sel then
+         screen.level(15); screen.move(128, y_base + 4); screen.text_right(">")
+      end
+   end
+   
+   -- Bottom instructions
+   screen.font_size(8)
+   screen.level(3); screen.move(0, 62); screen.text("E2:SEL  K2:LOAD  K3:SAVE  K3+K1:EXIT")
+   
+   draw_popup(state)
+   screen.update()
+end
+
+-- ============================================================
 -- PAGE 7: TAPE (Looper control)
 -- ============================================================
 local function draw_tape_page(state, shift)
@@ -385,19 +441,18 @@ local function draw_ambient_page(state, shift)
       screen.level(3); screen.move(50, 53); screen.text("E2:TIME")
       screen.level(3); screen.move(95, 53); screen.text("E3:NOISE")
    else
-      -- Shift: Rev Damp, Global LPF, Global HPF
-      local rev_damp = params:get("reverb_damp") or 4600
-      local global_lpf = params:get("global_lpf") or 20000
-      local global_hpf = params:get("global_hpf") or 20
+      -- Shift: Rev Damp, Global LPF, Global HPF — same layout as main
+      screen.level(3); screen.move(0, 20); screen.text("DAMP")
+      screen.level(15); screen.move(30, 20); screen.text(string.format("%.0fHz", params:get("reverb_damp") or 4600))
+      screen.level(3); screen.move(60, 20); screen.text("LPF")
+      screen.level(15); screen.move(85, 20); screen.text(string.format("%.0fHz", params:get("global_lpf") or 20000))
       
-      draw_left_e1("DAMP", string.format("%.0fHz", rev_damp))
-      screen.level(3); screen.move(55, 53); screen.text("LPF")
-      screen.level(15); screen.move(55, 60); screen.text(string.format("%.0fHz", global_lpf))
-      screen.level(3); screen.move(95, 53); screen.text("HPF")
-      screen.level(15); screen.move(95, 60); screen.text(string.format("%.0fHz", global_hpf))
+      screen.level(3); screen.move(0, 30); screen.text("HPF")
+      screen.level(15); screen.move(30, 30); screen.text(string.format("%.0fHz", params:get("global_hpf") or 20))
       
-      draw_vertical_divider()
-      draw_header_right("FILTERS")
+      screen.level(3); screen.move(0, 53); screen.text("E1:DAMP")
+      screen.level(3); screen.move(50, 53); screen.text("E2:LPF")
+      screen.level(3); screen.move(95, 53); screen.text("E3:HPF")
    end
    
    draw_popup(state)
@@ -405,61 +460,69 @@ local function draw_ambient_page(state, shift)
 end
 
 -- ============================================================
--- PAGE 10: MASTER (Compressor + Output)
+-- PAGE 10: MASTER (Monitor + Compressor + Output)
 -- ============================================================
 local function draw_master_page(state, shift)
    screen.clear()
    screen.level(4); screen.move(64, 8); screen.text_center("MASTER OUTPUT")
    
    if not shift then
-      local mon = params:get("main_mon") or 0.833
+      -- No-shift: Monitor Level, Comp Thresh, Comp Ratio
+      local mon = params:get("monitor_amp") or -60
       local thresh = params:get("bus_thresh") or -12.0
       local ratio = params:get("bus_ratio") or 2.2
-      local bal = params:get("balance") or 0
       
-      draw_left_e1("MONITOR", string.format("%.1fdB", util.linlin(0, 1, -60, 12, mon)))
+      screen.level(3); screen.move(0, 20); screen.text("MONITOR")
+      screen.level(15); screen.move(30, 20); screen.text(string.format("%.1fdB", mon))
       
-      screen.level(3); screen.move(55, 53); screen.text("THRESH")
-      screen.level(15); screen.move(55, 60); screen.text(string.format("%.1fdB", thresh))
-      screen.level(3); screen.move(95, 53); screen.text("RATIO")
-      screen.level(15); screen.move(95, 60); screen.text(string.format("%.1f:1", ratio))
+      screen.level(3); screen.move(0, 30); screen.text("THRESH")
+      screen.level(15); screen.move(40, 30); screen.text(string.format("%.1fdB", thresh))
+      screen.level(3); screen.move(60, 30); screen.text("RATIO")
+      screen.level(15); screen.move(85, 30); screen.text(string.format("%.1f:1", ratio))
       
       -- GR Meter + L/R Meters
       local gr = state.comp_gr or 0
       local gr_norm = clamp(gr * 4, 0, 1)
-      screen.level(3); screen.move(0, 25); screen.text("GR")
-      draw_plasma_bar(18, 23, 50, 2, gr_norm, true)
+      screen.level(3); screen.move(0, 40); screen.text("GR")
+      draw_plasma_bar(18, 38, 50, 2, gr_norm, true)
       
       local amp_l_db = 20 * math.log10(state.amp_l > 0.0001 and state.amp_l or 0.0001)
       local amp_r_db = 20 * math.log10(state.amp_r > 0.0001 and state.amp_r or 0.0001)
       local l_norm = clamp(linlin(-60, 0, 0, 1, amp_l_db), 0, 1)
       local r_norm = clamp(linlin(-60, 0, 0, 1, amp_r_db), 0, 1)
       
-      screen.level(3); screen.move(0, 30); screen.text("L")
-      draw_plasma_bar(18, 28, 50, 3, l_norm, false)
-      screen.level(3); screen.move(0, 37); screen.text("R")
-      draw_plasma_bar(18, 35, 50, 3, r_norm, false)
+      screen.level(3); screen.move(0, 45); screen.text("L")
+      draw_plasma_bar(18, 43, 50, 3, l_norm, false)
+      screen.level(3); screen.move(0, 52); screen.text("R")
+      draw_plasma_bar(18, 50, 50, 3, r_norm, false)
+      
+      screen.level(3); screen.move(0, 60); screen.text("E1:MONITOR")
+      screen.level(3); screen.move(50, 60); screen.text("E2:THRESH")
+      screen.level(3); screen.move(95, 60); screen.text("E3:RATIO")
       
       draw_vertical_divider()
-      draw_header_right("MASTER")
       draw_goniometer(state)
       
    else
-      -- Shift: Limiter Ceil, Bass Focus, Comp Drive
-      local ceil = params:get("limiter_ceil") or -0.1
+      -- Shift: Master Volume, Bass Focus, Comp Drive
+      local mv = params:get("master_vol") or 0.833
       local bf = params:get("bass_focus") or 0
       local drive = params:get("bus_drive") or 1.0
       local bf_names = {"OFF", "50Hz", "100Hz", "200Hz"}
       
-      draw_left_e1("CEIL", string.format("%.1fdB", ceil))
+      screen.level(3); screen.move(0, 20); screen.text("MASTER")
+      screen.level(15); screen.move(40, 20); screen.text(string.format("%.1fdB", util.linlin(0, 1, -60, 12, mv)))
       
-      screen.level(3); screen.move(55, 53); screen.text("BASS")
-      screen.level(15); screen.move(55, 60); screen.text(bf_names[bf + 1])
-      screen.level(3); screen.move(95, 53); screen.text("DRIVE")
-      screen.level(15); screen.move(95, 60); screen.text(string.format("%.1fdB", drive))
+      screen.level(3); screen.move(0, 30); screen.text("BASS")
+      screen.level(15); screen.move(30, 30); screen.text(bf_names[bf + 1])
+      screen.level(3); screen.move(60, 30); screen.text("DRIVE")
+      screen.level(15); screen.move(85, 30); screen.text(string.format("%.1fdB", drive))
+      
+      screen.level(3); screen.move(0, 60); screen.text("E1:MASTER")
+      screen.level(3); screen.move(50, 60); screen.text("E2:BASS")
+      screen.level(3); screen.move(95, 60); screen.text("E3:DRIVE")
       
       draw_vertical_divider()
-      draw_header_right("MASTER")
       draw_goniometer(state)
    end
    
@@ -485,6 +548,7 @@ function Graphics.draw(state)
   if page == 9 then draw_ambient_page(state, shift); return end
   if page == 8 then draw_mixer_page(state, shift); return end
   if page == 7 then draw_tape_page(state, shift); return end
+  if page == 6 then draw_tape_library_page(state); return end
   
   -- Fallback
   draw_tape_page(state, shift)
