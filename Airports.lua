@@ -178,10 +178,11 @@ function enc(n, d)
   end
   
   -- Normal pages
-  local shift = state.k1_held or state.grid_shift_active
+  local shift = state.k1_held or state.grid_shift_active or (state.grid_track_held and page == 8)
   
-  -- Tertiary mode (Track Held) — works on ALL pages
-  if state.grid_track_held then
+  -- Tertiary mode (Track Held) — works on pages 7, 9, 10
+  -- On page 8 (Mixer), track held acts as shift instead
+  if state.grid_track_held and page ~= 8 then
      if n == 1 then Loopers.delta_param("rec_level", d, state)
      elseif n == 2 then Loopers.delta_param("src_sel", d, state) end
      return

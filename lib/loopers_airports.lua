@@ -265,17 +265,15 @@ function Loopers.stop_with_fade(idx, state)
       t.fade_clock = nil
    end
    
-   -- Change state to stop, refresh (volume untouched!)
-   t.state = 5
-   Loopers.refresh(idx, state)
-   
    if fade_time < 0.05 then
-      -- Instant: set VCA to 0
+      -- Instant: change state and set VCA to 0
+      t.state = 5
       t.fade_vca = 0.0
       engine.l_fade_vca(idx, 0.0)
+      Loopers.refresh(idx, state)
    else
-      -- Gradual fade out: ramp VCA from current value to 0
-      -- Proportional time: if VCA=0.625, ramp_time = fade_time * 0.625
+      -- Keep state as PLAY (gate_play=1) so audio continues during fade!
+      -- State changes to 5 only when VCA reaches 0
       local start_vca = t.fade_vca or 1.0
       local ramp_time = fade_time * start_vca
       local start_time = util.time()
@@ -285,7 +283,9 @@ function Loopers.stop_with_fade(idx, state)
             local progress = elapsed / ramp_time
             if progress >= 1.0 then
                t.fade_vca = 0.0
+               t.state = 5  -- NOW safe to stop (audio already silent)
                engine.l_fade_vca(idx, 0.0)
+               Loopers.refresh(idx, state)
                t.fade_clock = nil
                break
             end
