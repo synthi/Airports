@@ -55,7 +55,9 @@ function Globals.new()
       rnd_loop = false,
       rnd_eq = false,
       rnd_vol = false,
-      fade_out = 0.0
+      fade_out = 0.0,
+      fade_vca = 1.0,
+      fade_clock = nil
     }
   end
   

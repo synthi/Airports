@@ -129,16 +129,17 @@ Engine_Airports : CroneEngine {
              l2_rec=0, l2_play=0, l2_vol=0, l2_speed=1, l2_start=0, l2_end=1, l2_src=0, l2_dub=0.5, l2_deg=0, l2_brake=0, l2_rec_lvl=0, l2_length=60, l2_seek_pos=0, t_l2_seek_trig=0,
              l3_rec=0, l3_play=0, l3_vol=0, l3_speed=1, l3_start=0, l3_end=1, l3_src=0, l3_dub=0.5, l3_deg=0, l3_brake=0, l3_rec_lvl=0, l3_length=60, l3_seek_pos=0, t_l3_seek_trig=0,
              l4_rec=0, l4_play=0, l4_vol=0, l4_speed=1, l4_start=0, l4_end=1, l4_src=0, l4_dub=0.5, l4_deg=0, l4_brake=0, l4_rec_lvl=0, l4_length=60, l4_seek_pos=0, t_l4_seek_trig=0,
-             l1_low=0, l1_high=0, l1_filter=0.5, l1_pan=0, l1_width=1,
-             l2_low=0, l2_high=0, l2_filter=0.5, l2_pan=0, l2_width=1,
-             l3_low=0, l3_high=0, l3_filter=0.5, l3_pan=0, l3_width=1,
-             l4_low=0, l4_high=0, l4_filter=0.5, l4_pan=0, l4_width=1|
+             l1_low=0, l1_high=0, l1_filter=0.5, l1_pan=0, l1_width=1, l1_fade_vca=1,
+             l2_low=0, l2_high=0, l2_filter=0.5, l2_pan=0, l2_width=1, l2_fade_vca=1,
+             l3_low=0, l3_high=0, l3_filter=0.5, l3_pan=0, l3_width=1, l3_fade_vca=1,
+             l4_low=0, l4_high=0, l4_filter=0.5, l4_pan=0, l4_width=1, l4_fade_vca=1|
 
             var proc_in, rev_out;
             var loop_outputs_sum;
             var synth_buffers, track_buses;
             var l_rec_arr, l_play_arr, l_vol_arr, l_speed_arr, l_start_arr, l_end_arr, l_src_arr, l_dub_arr, l_deg_arr, l_brake_arr, l_rec_lvl_arr, l_length_arr, l_seek_p_arr, l_seek_t_arr;
             var l_low_arr, l_high_arr, l_filter_arr, l_pan_arr, l_width_arr;
+            var l_fade_vca_arr;
             var pointers = Array.fill(4, { DC.kr(0) });
             var master_out, main_mon_amp;
             var bf_freq, bf_mono, bf_highs;
@@ -180,6 +181,7 @@ Engine_Airports : CroneEngine {
             l_filter_arr = [l1_filter, l2_filter, l3_filter, l4_filter];
             l_pan_arr = [l1_pan, l2_pan, l3_pan, l4_pan];
             l_width_arr = [l1_width, l2_width, l3_width, l4_width];
+            l_fade_vca_arr = [l1_fade_vca, l2_fade_vca, l3_fade_vca, l4_fade_vca];
 
             4.do({ |i|
                 var b_idx, bus_idx;
@@ -317,6 +319,9 @@ Engine_Airports : CroneEngine {
                 side = (output_sig[0] - output_sig[1]) * 0.5;
                 output_sig = Balance2.ar(mid + (side * l_width_arr[i]), mid - (side * l_width_arr[i]), l_pan_arr[i]);
 
+                // Dedicated transport fade VCA (independent of vol param)
+                output_sig = output_sig * Lag.ar(K2A.ar(l_fade_vca_arr[i]), 0.02);
+
                 Out.ar(bus_idx, output_sig);
                 loop_outputs_sum = loop_outputs_sum + (output_sig * LinLin.kr(l_vol_arr[i], 0, 1, -60, 12).dbamp * (l_vol_arr[i] > 0.001));
             });
@@ -397,6 +402,7 @@ Engine_Airports : CroneEngine {
         this.addCommand("l_rec_lvl", "if", { |msg| synth_loopers.set(("l" ++ msg[1] ++ "_rec_lvl").asSymbol, msg[2]); });
         this.addCommand("l_brake", "if", { |msg| synth_loopers.set(("l" ++ msg[1] ++ "_brake").asSymbol, msg[2]); });
         this.addCommand("l_speed", "if", { |msg| synth_loopers.set(("l" ++ msg[1] ++ "_speed").asSymbol, msg[2]); });
+        this.addCommand("l_fade_vca", "if", { |msg| synth_loopers.set(("l" ++ msg[1] ++ "_fade_vca").asSymbol, msg[2]); });
 
         this.addCommand("main_mon", "f", { |msg| synth_loopers.set(\main_mon, msg[1]); });
         this.addCommand("monitor_amp", "f", { |msg| synth_loopers.set(\monitor_amp, msg[1]); });

@@ -571,15 +571,23 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         if z == 1 then
            state.transport_press_time[trk] = now
            
-           -- MOM aux held + Transport = instant Play/Stop (bypass fade)
-           if state.mom_aux_held or state.grid_track_held then
-              local current = state.tracks[trk].state
-              local next_st = 5
-              if current == 5 then next_st = 3 end
-              state.tracks[trk].state = next_st
-              Loopers.refresh(trk, state)
-              return
-           end
+            -- MOM aux held + Transport = instant Play/Stop (bypass fade)
+            if state.mom_aux_held or state.grid_track_held then
+               local current = state.tracks[trk].state
+               local next_st = 5
+               if current == 5 then next_st = 3 end
+               -- Cancel any running fade
+               if state.tracks[trk].fade_clock then
+                  clock.cancel(state.tracks[trk].fade_clock)
+                  state.tracks[trk].fade_clock = nil
+               end
+               state.tracks[trk].state = next_st
+               -- Reset VCA: 1.0 for play, 0.0 for stop
+               state.tracks[trk].fade_vca = (next_st == 3) and 1.0 or 0.0
+               engine.l_fade_vca(trk, state.tracks[trk].fade_vca)
+               Loopers.refresh(trk, state)
+               return
+            end
            
            -- Shift + Transport = Play/Stop with fade_time
            if state.grid_shift_active then
@@ -595,13 +603,19 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
            local hold_time = now - state.transport_press_time[trk]
            if state.grid_shift_active or state.mom_aux_held or state.grid_track_held then return end
            
-           if hold_time > 1.0 then
-              Loopers.clear(trk, state)
-           else
-              local st = state.tracks[trk].state
-              local next_st = 3
-              
-              -- Auto-loop timeout logic
+            if hold_time > 1.0 then
+               Loopers.clear(trk, state)
+            else
+               local st = state.tracks[trk].state
+               local next_st = 3
+               
+               -- Cancel any running fade
+               if state.tracks[trk].fade_clock then
+                  clock.cancel(state.tracks[trk].fade_clock)
+                  state.tracks[trk].fade_clock = nil
+               end
+               
+               -- Auto-loop timeout logic
               if state.tracks[trk].first_pass then
                   local rec_dur = now - (state.tracks[trk].rec_start_time or now)
                   local max_len = params:get("l"..trk.."_length")
@@ -632,8 +646,13 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
                  next_st = 3
               end
               
-              state.tracks[trk].state = next_st
-              Loopers.refresh(trk, state)
+               state.tracks[trk].state = next_st
+               -- Going to play from stopped: ensure VCA is 1 for instant play
+               if next_st == 3 and (st == 5 or st == 1 or st == 0) then
+                  state.tracks[trk].fade_vca = 1.0
+                  engine.l_fade_vca(trk, 1.0)
+               end
+               Loopers.refresh(trk, state)
            end
         end
         return

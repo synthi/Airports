@@ -113,9 +113,15 @@ end
 
 function Loopers.clear(idx, state)
    local t = state.tracks[idx]
+   -- Cancel any running fade
+   if t.fade_clock then
+      clock.cancel(t.fade_clock)
+      t.fade_clock = nil
+   end
    t.state = 1; t.rec_len = 0; t.play_pos = 0
    t.loop_start = 0; t.loop_end = 1; t.speed = 1.0; t.overdub = 1.0
    t.wow_macro = 0; t.brake_amt = 0
+   t.fade_vca = 1.0
    state.tape_filenames[idx] = nil
    t.is_dirty = false
    t.file_path = nil
@@ -252,27 +258,40 @@ function Loopers.stop_with_fade(idx, state)
    local t = state.tracks[idx]
    if not t then return end
    local fade_time = params:get("l"..idx.."_fade_time") or 0
+   
+   -- Cancel any existing fade
+   if t.fade_clock then
+      clock.cancel(t.fade_clock)
+      t.fade_clock = nil
+   end
+   
+   -- Change state to stop, refresh (volume untouched!)
+   t.state = 5
+   Loopers.refresh(idx, state)
+   
    if fade_time < 0.05 then
-      -- Instant stop
-      t.state = 5
-      t.vol = t.vol  -- keep vol
-      Loopers.refresh(idx, state)
+      -- Instant: set VCA to 0
+      t.fade_vca = 0.0
+      engine.l_fade_vca(idx, 0.0)
    else
-      -- Gradual fade out over fade_time seconds
-      local start_vol = t.vol or 0.833
+      -- Gradual fade out: ramp VCA from current value to 0
+      -- Proportional time: if VCA=0.625, ramp_time = fade_time * 0.625
+      local start_vca = t.fade_vca or 1.0
+      local ramp_time = fade_time * start_vca
       local start_time = util.time()
-      clock.run(function()
+      t.fade_clock = clock.run(function()
          while true do
             local elapsed = util.time() - start_time
-            local progress = elapsed / fade_time
+            local progress = elapsed / ramp_time
             if progress >= 1.0 then
-               t.vol = start_vol  -- restore original vol
-               t.state = 5
-               Loopers.refresh(idx, state)
+               t.fade_vca = 0.0
+               engine.l_fade_vca(idx, 0.0)
+               t.fade_clock = nil
                break
             end
-            t.vol = start_vol * (1.0 - progress)
-            Loopers.refresh(idx, state)
+            local vca = start_vca * (1.0 - progress)
+            t.fade_vca = vca
+            engine.l_fade_vca(idx, vca)
             clock.sleep(0.02)
          end
       end)
@@ -284,29 +303,41 @@ function Loopers.play_with_fade(idx, state)
    if not t then return end
    local fade_time = params:get("l"..idx.."_fade_time") or 0
    
-   -- Set state to playing (3) immediately
-   t.state = 3
+   -- Cancel any existing fade
+   if t.fade_clock then
+      clock.cancel(t.fade_clock)
+      t.fade_clock = nil
+   end
    
-   if fade_time < 0.05 then
-      -- Instant play
-      Loopers.refresh(idx, state)
+   -- Change state to play, refresh (volume untouched!)
+   t.state = 3
+   Loopers.refresh(idx, state)
+   
+   -- Current VCA position (may be mid-fade from a previous stop)
+   local current_vca = t.fade_vca or 0.0
+   
+   -- Calculate proportional ramp time based on how far we need to go
+   local ramp_time = fade_time * (1.0 - current_vca)
+   if ramp_time < 0.05 then
+      -- Instant: set VCA to 1
+      t.fade_vca = 1.0
+      engine.l_fade_vca(idx, 1.0)
    else
-      -- Gradual fade in over fade_time seconds
-      local target_vol = t.vol or 0.833
+      -- Gradual fade in: ramp VCA from current to 1.0
       local start_time = util.time()
-      t.vol = 0
-      Loopers.refresh(idx, state)
-      clock.run(function()
+      t.fade_clock = clock.run(function()
          while true do
             local elapsed = util.time() - start_time
-            local progress = elapsed / fade_time
+            local progress = elapsed / ramp_time
             if progress >= 1.0 then
-               t.vol = target_vol
-               Loopers.refresh(idx, state)
+               t.fade_vca = 1.0
+               engine.l_fade_vca(idx, 1.0)
+               t.fade_clock = nil
                break
             end
-            t.vol = target_vol * progress
-            Loopers.refresh(idx, state)
+            local vca = current_vca + ((1.0 - current_vca) * progress)
+            t.fade_vca = vca
+            engine.l_fade_vca(idx, vca)
             clock.sleep(0.02)
          end
       end)
