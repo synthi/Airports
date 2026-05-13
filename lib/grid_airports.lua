@@ -106,13 +106,13 @@ local function draw_row5(state)
   for i=1, 11 do
      local val = VS_VALS[i]
      local x = i + 5
-     local b = 0
+     local b = DIM_BRIGHT
      if math.abs(s - val) < 0.01 then
         b = MAX_BRIGHT  -- Exact match (including 0x when speed=0)
      elseif (s > 0 and val >= 0 and s >= val) or (s < 0 and val <= 0 and s <= val) then
         b = MED_BRIGHT  -- Fill: speed has passed this anchor (includes 0x)
      elseif val == 0 then
-        b = 1  -- 0x always visible as frontier marker
+        b = 1  -- 0x always visible as frontier marker (instead of DIM_BRIGHT)
      end
      led_buf(x, 5, b)
   end
