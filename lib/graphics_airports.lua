@@ -127,7 +127,7 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 17 + (i * 8)
+         local y = 13 + (i * 8)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
@@ -148,7 +148,7 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 18 + (i * 7)
+         local y = 14 + (i * 7)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
@@ -171,7 +171,7 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 17 + (i * 8)
+         local y = 13 + (i * 8)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
@@ -386,7 +386,7 @@ local function draw_ambient_page(state, shift)
       local rev_time = params:get("reverb_time") or 4.2
       local noise_amp = params:get("noise_amp") or 0
       local noise_type = params:get("noise_type") or 0
-      local noise_names = {"PINK", "WHITE", "CRACKLE", "RAIN", "LORENZ", "GRIT"}
+      local noise_names = {"PINK", "WHITE", "CRACKLE", "DIGIRAIN", "LORENZ", "GRIT"}
       
       screen.level(3); screen.move(0, 20); screen.text("REVERB")
       screen.level(15); screen.move(30, 20); screen.text(string.format("%.0f%%", rev_mix * 100))
@@ -396,7 +396,7 @@ local function draw_ambient_page(state, shift)
       screen.level(3); screen.move(0, 30); screen.text("NOISE")
       screen.level(15); screen.move(30, 30); screen.text(string.format("%.0f%%", noise_amp * 100))
       screen.level(3); screen.move(60, 30); screen.text("TYPE")
-      screen.level(15); screen.move(85, 30); screen.text(noise_names[noise_type + 1])
+      screen.level(15); screen.move(85, 30); screen.text(noise_names[noise_type])
       
       screen.level(3); screen.move(0, 53); screen.text("E1:REV MIX")
       screen.level(3); screen.move(50, 53); screen.text("E2:TIME")

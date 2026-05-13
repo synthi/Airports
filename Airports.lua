@@ -675,7 +675,7 @@ function init()
     -- Hidden params for 16n layer shift (brake continuo, mapped from 16n faders 5-8)
     params:add{type = "control", id = "l"..i.."_brake16", name = "Brake 16n", controlspec = controlspec.new(0, 1, 'lin', 0.01, 0), formatter = fmt_percent, action = function(x) state.tracks[i].brake_amt = x; Loopers.refresh(i, state) end}
     -- Fade out time per track
-    params:add{type = "control", id = "l"..i.."_fadeout", name = "Fade Out", controlspec = controlspec.new(0, 30.0, 'lin', 0.1, 0.0, "s"), formatter = fmt_sec, action = function(x) state.tracks[i].fade_out = x end}
+    params:add{type = "control", id = "l"..i.."_fade_time", name = "Fade Time", controlspec = controlspec.new(0, 30.0, 'lin', 0.1, 0.0, "s"), formatter = fmt_sec}
   end
 
   -- TAPE LIBRARY

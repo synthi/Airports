@@ -251,7 +251,7 @@ end
 function Loopers.stop_with_fade(idx, state)
    local t = state.tracks[idx]
    if not t then return end
-   local fade_time = t.fade_out or 0
+   local fade_time = params:get("l"..idx.."_fade_time") or 0
    if fade_time < 0.05 then
       -- Instant stop
       t.state = 5
@@ -272,6 +272,40 @@ function Loopers.stop_with_fade(idx, state)
                break
             end
             t.vol = start_vol * (1.0 - progress)
+            Loopers.refresh(idx, state)
+            clock.sleep(0.02)
+         end
+      end)
+   end
+end
+
+function Loopers.play_with_fade(idx, state)
+   local t = state.tracks[idx]
+   if not t then return end
+   local fade_time = params:get("l"..idx.."_fade_time") or 0
+   
+   -- Set state to playing (3) immediately
+   t.state = 3
+   
+   if fade_time < 0.05 then
+      -- Instant play
+      Loopers.refresh(idx, state)
+   else
+      -- Gradual fade in over fade_time seconds
+      local target_vol = t.vol or 0.833
+      local start_time = util.time()
+      t.vol = 0
+      Loopers.refresh(idx, state)
+      clock.run(function()
+         while true do
+            local elapsed = util.time() - start_time
+            local progress = elapsed / fade_time
+            if progress >= 1.0 then
+               t.vol = target_vol
+               Loopers.refresh(idx, state)
+               break
+            end
+            t.vol = target_vol * progress
             Loopers.refresh(idx, state)
             clock.sleep(0.02)
          end

@@ -19,6 +19,8 @@ function Grid.init(state, device)
   if g then g:all(0); g:refresh() end
   state.grid_keys_held = {}
   for i=1, 4 do state.grid_keys_held[i] = {} end
+  state.mom_aux_held = false
+  state.mom_press_time = 0
   state.seek_memory = {}
   state.ribbon_memory = {}
   state.ribbon_press_time = 0
@@ -174,8 +176,12 @@ local function draw_row8(state)
   local now = util.time()
   local pulse_seq = math.floor(math.sin(now * 5) * 4 + 7)
   
-  -- MOM (X=1) — dim fixed, bright when active
-  led_buf(1, 8, state.grid_momentary_mode and MAX_BRIGHT or 2)
+  -- MOM (X=1) — dim fixed, bright when momentary mode or aux held
+  if state.mom_aux_held then
+     led_buf(1, 8, MED_BRIGHT)
+  else
+     led_buf(1, 8, state.grid_momentary_mode and MAX_BRIGHT or 2)
+  end
   
   -- SHIFT (X=2) — bright when active, dim when inactive
   led_buf(2, 8, state.grid_shift_active and MAX_BRIGHT or DIM_BRIGHT)
@@ -371,9 +377,24 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         return
      end
      
-     -- MOMENTARY (X=1)
-     if x == 1 and z == 1 then
-        state.grid_momentary_mode = not state.grid_momentary_mode
+     -- MOMENTARY (X=1): tap<500ms=toggle mode, hold≥500ms=aux key
+     if x == 1 then
+        if z == 1 then
+           state.mom_press_time = now
+           state.mom_aux_held = false
+           clock.run(function()
+              clock.sleep(0.5)
+              if state.button_state[1][8] then
+                 state.mom_aux_held = true
+              end
+           end)
+        elseif z == 0 then
+           if state.mom_aux_held then
+              state.mom_aux_held = false
+           else
+              state.grid_momentary_mode = not state.grid_momentary_mode
+           end
+        end
         return
      end
      
@@ -550,8 +571,8 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         if z == 1 then
            state.transport_press_time[trk] = now
            
-           -- Shift + Transport = toggle Play/Stop
-           if state.grid_shift_active or state.grid_track_held then
+           -- MOM aux held + Transport = instant Play/Stop (bypass fade)
+           if state.mom_aux_held or state.grid_track_held then
               local current = state.tracks[trk].state
               local next_st = 5
               if current == 5 then next_st = 3 end
@@ -559,9 +580,20 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
               Loopers.refresh(trk, state)
               return
            end
+           
+           -- Shift + Transport = Play/Stop with fade_time
+           if state.grid_shift_active then
+              local current = state.tracks[trk].state
+              if current == 5 then
+                 Loopers.play_with_fade(trk, state)
+              else
+                 Loopers.stop_with_fade(trk, state)
+              end
+              return
+           end
         elseif z == 0 then
            local hold_time = now - state.transport_press_time[trk]
-           if state.grid_shift_active or state.grid_track_held then return end
+           if state.grid_shift_active or state.mom_aux_held or state.grid_track_held then return end
            
            if hold_time > 1.0 then
               Loopers.clear(trk, state)
