@@ -31,16 +31,12 @@ end
 
 local function set_p(id, val)
     local eng_cmd = id
-    local eng_val = val
     if id == "bus_thresh" then eng_cmd = "comp_thresh"
     elseif id == "bus_ratio" then eng_cmd = "comp_ratio"
     elseif id == "bus_drive" then eng_cmd = "comp_drive"
-    elseif id == "master_vol" then 
-        eng_cmd = "main_mon"
-        eng_val = util.linlin(-60, 12, 0, 1, val)
     end
     
-    if engine[eng_cmd] then engine[eng_cmd](eng_val) end
+    if engine[eng_cmd] then engine[eng_cmd](val) end
     state.str_cache[id] = params:string(id)
 end
 
@@ -57,7 +53,7 @@ local fader_map = {
     [5] = "l1_filter", [6] = "l2_filter", [7] = "l3_filter", [8] = "l4_filter",
     [9] = "reverb_mix", [10] = "reverb_time",
     [11] = "noise_amp", [12] = "global_lpf",
-    [13] = "master_vol", [14] = "bus_thresh",
+    [13] = "main_mon", [14] = "bus_thresh",
     [15] = "bus_ratio", [16] = "balance"
 }
 
@@ -66,7 +62,7 @@ local fader_names = {
     [5] = "TRK 1 FLT", [6] = "TRK 2 FLT", [7] = "TRK 3 FLT", [8] = "TRK 4 FLT",
     [9] = "REVERB MIX", [10] = "REVERB TIME",
     [11] = "NOISE LVL", [12] = "GLOBAL LPF",
-    [13] = "MASTER VOL", [14] = "COMP THRESH",
+    [13] = "MAIN MON", [14] = "COMP THRESH",
     [15] = "COMP RATIO", [16] = "BALANCE"
 }
 
@@ -246,9 +242,9 @@ function enc(n, d)
   elseif page == 10 then
      -- MASTER page
      if shift then
-        -- Shift: Master Vol, Bass Focus, Comp Drive
-        if n == 1 then params:delta("master_vol", d)
-        elseif n == 2 then params:delta("bass_focus", d)
+        -- Shift: Main Mon (Master Output), Balance, Comp Drive
+        if n == 1 then params:delta("main_mon", d)
+        elseif n == 2 then params:delta("balance", d)
         elseif n == 3 then params:delta("bus_drive", d) end
      else
         -- No-shift: Monitor, Thresh, Ratio
@@ -608,7 +604,7 @@ function init()
   params:add_separator("AIRPORTS")
   
   params:add_group("GLOBAL", 5)
-  params:add{type = "control", id = "master_vol", name = "Master Volume", controlspec = controlspec.new(-60, 12, 'lin', 0.1, 0, "dB"), formatter = fmt_raw_db, action = function(x) set_p("master_vol", x) end}
+  params:add{type = "control", id = "main_mon", name = "Main Monitor", controlspec = controlspec.new(0, 1, 'lin', 0.001, 0.833), formatter = fmt_db, action = function(x) set_p("main_mon", x) end}
   params:add{type = "control", id = "fader_slew", name = "Fader Slew", controlspec = controlspec.new(0.01, 10.0, 'exp', 0.01, 0.05, "s"), formatter = fmt_sec, action = function(x) set_p("fader_slew", x) end}
   params:add{type = "control", id = "preset_morph", name = "Preset Morph", controlspec = controlspec.new(0.01, 30.0, 'exp', 0.01, 2.0, "s"), formatter = fmt_sec}
   params:add{type = "option", id = "load_behavior", name = "Load Behavior", options = {"Stop", "Play"}, default = 1}
