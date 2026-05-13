@@ -622,10 +622,25 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
      local trk_idx = math.floor((x-1)/4) + 1
      local intensity = (x-1)%4 + 1
      local amt = intensity * 0.25
-     if z == 1 then
-        state.tracks[trk_idx].brake_amt = math.max(state.tracks[trk_idx].brake_amt or 0, amt)
-     elseif z == 0 then
-        state.tracks[trk_idx].brake_amt = 0
+     if state.grid_momentary_mode then
+        -- MOM ON: momentary — press=brake, release=0
+        if z == 1 then
+           state.tracks[trk_idx].brake_amt = math.max(state.tracks[trk_idx].brake_amt or 0, amt)
+        elseif z == 0 then
+           state.tracks[trk_idx].brake_amt = 0
+        end
+     else
+        -- MOM OFF: toggle — press toggles, release does nothing
+        if z == 1 then
+           local current = state.tracks[trk_idx].brake_amt or 0
+           if math.abs(current - amt) < 0.01 then
+              -- Same level pressed → toggle off
+              state.tracks[trk_idx].brake_amt = 0
+           else
+              -- Different level → activate
+              state.tracks[trk_idx].brake_amt = amt
+           end
+        end
      end
      Loopers.refresh(trk_idx, state)
      return
