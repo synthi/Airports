@@ -74,7 +74,9 @@ function osc.event(path, args, from)
   
   if path == "/buffer_info" then
     local idx = math.floor(args[1]); local dur = args[2]
-    state.tracks[idx].rec_len = dur; Loopers.refresh(idx, state)
+    state.tracks[idx].rec_len = dur
+    params:set("l"..idx.."_length", dur)
+    Loopers.refresh(idx, state)
     print("Reel " .. idx .. " duration: " .. dur)
 
   elseif path == "/airports/visuals" then
@@ -603,7 +605,7 @@ function init()
   -- ========================
   params:add_separator("AIRPORTS")
   
-  params:add_group("GLOBAL", 5)
+  params:add_group("GLOBAL", 6)
   params:add{type = "control", id = "main_mon", name = "Main Monitor", controlspec = controlspec.new(0, 1, 'lin', 0.001, 0.833), formatter = fmt_db, action = function(x) set_p("main_mon", x) end}
   params:add{type = "control", id = "fader_slew", name = "Fader Slew", controlspec = controlspec.new(0.01, 10.0, 'exp', 0.01, 0.05, "s"), formatter = fmt_sec, action = function(x) set_p("fader_slew", x) end}
   params:add{type = "control", id = "preset_morph", name = "Preset Morph", controlspec = controlspec.new(0.01, 30.0, 'exp', 0.01, 2.0, "s"), formatter = fmt_sec}

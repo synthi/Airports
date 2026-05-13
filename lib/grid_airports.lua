@@ -53,7 +53,7 @@ local function draw_loopers(state)
     local s = math.floor((track.loop_start or 0) * 15) + 1
     local e = math.floor((track.loop_end or 1) * 15) + 1
     
-    local has_audio = (track.state == 2 or track.state == 3 or track.state == 4)
+    local has_audio = (track.state == 2 or track.state == 3 or track.state == 4 or (track.state == 5 and (track.rec_len or 0) > 0.002))
     local head_pos = (track.play_pos or 0) * 15 + 1
     local head_max_b = 0
     if has_audio then head_max_b = MAX_BRIGHT
