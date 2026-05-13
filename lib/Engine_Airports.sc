@@ -184,10 +184,10 @@ Engine_Airports : CroneEngine {
             4.do({ |i|
                 var b_idx, bus_idx;
                 var gate_rec, gate_play;
-                var rate_slew, brake_idx, brake_mod, lfo_mod, lfo_lag_time;
+                var rate_slew, brake_idx, brake_mod, lfo_mod, lfo_lag_time, wow_flutter;
                 var deg_curve, flutter_mod, final_rate;
                 var organic_brake_hpf, flux_gain;
-                var loop_len_samps, start_pos, end_pos, ptr;
+                var loop_len_samps, start_pos, end_pos, ptr, read_ptr;
                 var play_sig, deg_lpf, deg_hpf, corrosion_am, loop_ero, loop_dust_trig, loop_dropout_env, loop_gain_loss;
                 var sat_drive;
                 var dynamic_cutoff, sig_out, in_sig;
@@ -220,7 +220,9 @@ Engine_Airports : CroneEngine {
                     Select.kr(l_deg_arr[i] > 0.6, [LinLin.kr(l_deg_arr[i], 0.4, 0.6, 0.002, 0.02), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.6, 0.8, 0.02, 0.04), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 0.04, 0.08)])])
                 ]);
                 flutter_mod = Lag.kr(flutter_mod, 0.1);
-                final_rate = rate_slew * (1.0 + OnePole.ar(LFNoise2.ar(4+(i*1.5)) * (flutter_mod * 0.5), 0.5));
+                // Flutter applied to read pointer only (delay-style: write at exact rate, read modulated)
+                wow_flutter = OnePole.ar(LFNoise2.ar(4+(i*1.5)) * (flutter_mod * 0.5), 0.5);
+                final_rate = rate_slew; // Write pointer: exact rate, no flutter
 
                 organic_brake_hpf = LinExp.kr(rate_slew.abs + 0.001, 0.001, 1.0, 250, 10);
                 organic_brake_hpf = Lag.kr(organic_brake_hpf, 0.1);
@@ -232,6 +234,9 @@ Engine_Airports : CroneEngine {
 
                 ptr = Phasor.ar(l_seek_t_arr[i], final_rate * BufRateScale.kr(b_idx), start_pos, end_pos, l_seek_p_arr[i] * loop_len_samps);
 
+                // Read pointer: write ptr + flutter offset (BBD delay style)
+                read_ptr = (ptr + (wow_flutter * (end_pos - start_pos).max(1) * 0.5)).wrap(start_pos, end_pos);
+
                 // Negative pointer
                 gate_ar = K2A.ar(l_rec_arr[i]);
                 gate_play_ar = K2A.ar(l_play_arr[i]);
@@ -241,7 +246,7 @@ Engine_Airports : CroneEngine {
                 neg_time = A2K.kr(rec_timer.neg);
                 pointers[i] = Select.kr(A2K.kr(is_first_pass), [ptr_norm, neg_time]);
 
-                play_sig = BufRd.ar(2, b_idx, ptr, 1, 2);
+                play_sig = BufRd.ar(2, b_idx, read_ptr, 1, 2); // Read from fluttered position
 
                 // DEGRADE processing
                 deg_lpf = Lag.kr(Select.kr(l_deg_arr[i] > 0.5, [LinExp.kr(l_deg_arr[i], 0.0, 0.5, 17000, 12000), Select.kr(l_deg_arr[i] > 0.8, [LinExp.kr(l_deg_arr[i], 0.5, 0.8, 12000, 4000), LinExp.kr(l_deg_arr[i], 0.8, 1.0, 4000, 2800)])]), 0.1);
@@ -279,7 +284,8 @@ Engine_Airports : CroneEngine {
                 // amp_det = Amplitude.kr(play_sig, 0.0005, 0.3);
                 // dyn_stab = 1.0 - (amp_det.max(0.8) - 0.8 * 0.7).clip(0, 0.6);
                 // safe_fb = Select.kr(gate_play < 0.5, [fb_comp_curve * dyn_stab, DC.kr(1.0)]);
-                safe_fb = 1.0;
+                // Feedback compensation: boost to counteract LPF + corrosion + tanh loss from degrade
+                safe_fb = 1.0 + (l_deg_arr[i] * 0.4);
 
                 write_sig = (play_sig * l_dub_arr[i] * safe_fb) + (in_sig * l_rec_lvl_arr[i].dbamp * gate_rec);
                 BufWr.ar(write_sig, b_idx, ptr);
