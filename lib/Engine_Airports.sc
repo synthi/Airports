@@ -208,7 +208,7 @@ Engine_Airports : CroneEngine {
                 brake_idx = (l_brake_arr[i] * 4).round;
                 brake_mod = Select.kr(brake_idx, [1.0, 1.0, 1.0, 0.5, 0.0]);
                 brake_mod = Lag3.kr(brake_mod, 0.3);
-                lfo_mod = Select.kr(brake_idx, [1.0, LFNoise2.kr(2).range(0.95, 1.05), LFNoise2.kr(8).range(0.88, 1.12), LFNoise2.kr(4).range(0.95, 1.05), 1.0]);
+                lfo_mod = Select.kr(brake_idx, [1.0, LFNoise2.kr(2).range(0.97, 1.03), LFNoise2.kr(8).range(0.91, 1.09), LFNoise2.kr(4).range(0.95, 1.05), 1.0]);
                 lfo_lag_time = Select.kr(brake_idx, [0.1, 0.25, 0.1, 0.05, 0.05]);
                 lfo_mod = Lag.kr(lfo_mod, lfo_lag_time);
                 rate_slew = Lag.kr(l_speed_arr[i], 0.07) * brake_mod * lfo_mod;
@@ -220,7 +220,7 @@ Engine_Airports : CroneEngine {
                     Select.kr(l_deg_arr[i] > 0.6, [LinLin.kr(l_deg_arr[i], 0.4, 0.6, 0.002, 0.02), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.6, 0.8, 0.02, 0.04), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 0.04, 0.08)])])
                 ]);
                 flutter_mod = Lag.kr(flutter_mod, 0.1);
-                final_rate = rate_slew * (1.0 - OnePole.ar(LFNoise2.ar(4+(i*1.5)).range(0, flutter_mod), 0.5));
+                final_rate = rate_slew * (1.0 + OnePole.ar(LFNoise2.ar(4+(i*1.5)) * (flutter_mod * 0.5), 0.5));
 
                 organic_brake_hpf = LinExp.kr(rate_slew.abs + 0.001, 0.001, 1.0, 250, 10);
                 organic_brake_hpf = Lag.kr(organic_brake_hpf, 0.1);

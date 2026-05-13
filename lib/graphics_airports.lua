@@ -127,7 +127,7 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 20 + (i * 8)
+         local y = 17 + (i * 8)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
@@ -148,7 +148,7 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 16 + (i * 8)
+         local y = 18 + (i * 7)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
@@ -171,7 +171,7 @@ local function draw_tricks_page(state)
       }
       
       for i=1, #items do
-         local y = 20 + (i * 8)
+         local y = 17 + (i * 8)
          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
          screen.move(6, y); screen.text(items[i])
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
