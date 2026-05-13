@@ -272,13 +272,14 @@ Engine_Airports : CroneEngine {
                 in_sig = LPF.ar(LPF.ar(in_sig, deg_lpf), deg_lpf);
                 in_sig = in_sig * corrosion_am;
 
-                // Gain compensation
-                deg_idx = (l_deg_arr[i] * 20).round;
-                fb_comp_curve = Select.kr(deg_idx, [1.00, 1.00, 1.00, 1.05, 1.05, 0.99, 0.97, 0.95, 0.93, 0.93, 0.94, 0.88, 0.85, 0.83, 0.80, 0.74, 0.64, 0.59, 0.48, 0.39, 0.33]);
-
-                amp_det = Amplitude.kr(play_sig, 0.0005, 0.3);
-                dyn_stab = 1.0 - (amp_det.max(0.8) - 0.8 * 0.7).clip(0, 0.6);
-                safe_fb = Select.kr(gate_play < 0.5, [fb_comp_curve * dyn_stab, DC.kr(1.0)]);
+                // Gain compensation — disabled: tanh saturation now provides natural limiting
+                // Original curves preserved for reference:
+                // deg_idx = (l_deg_arr[i] * 20).round;
+                // fb_comp_curve = Select.kr(deg_idx, [1.00, 1.00, 1.00, 1.05, 1.05, 0.99, 0.97, 0.95, 0.93, 0.93, 0.94, 0.88, 0.85, 0.83, 0.80, 0.74, 0.64, 0.59, 0.48, 0.39, 0.33]);
+                // amp_det = Amplitude.kr(play_sig, 0.0005, 0.3);
+                // dyn_stab = 1.0 - (amp_det.max(0.8) - 0.8 * 0.7).clip(0, 0.6);
+                // safe_fb = Select.kr(gate_play < 0.5, [fb_comp_curve * dyn_stab, DC.kr(1.0)]);
+                safe_fb = 1.0;
 
                 write_sig = (play_sig * l_dub_arr[i] * safe_fb) + (in_sig * l_rec_lvl_arr[i].dbamp * gate_rec);
                 BufWr.ar(write_sig, b_idx, ptr);
