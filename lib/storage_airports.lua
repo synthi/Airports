@@ -13,7 +13,7 @@ function Storage.save_data(state, pset_id)
       local t = state.tracks[i]
       local len = t.rec_len or 0
       if len > 0.002 then
-         if t.is_dirty then
+         if t.is_dirty or not t.file_path then
             local timestamp = os.date("%y%m%d%H%M%S")
             local snap_name = _path.audio .. "Airports/snapshots/reel_" .. i .. "_" .. timestamp .. ".wav"
             engine.buffer_write(i, snap_name, len)
