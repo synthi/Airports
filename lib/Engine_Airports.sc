@@ -188,7 +188,6 @@ Engine_Airports : CroneEngine {
                 var deg_curve, flutter_mod, final_rate;
                 var organic_brake_hpf, flux_gain;
                 var loop_len_samps, start_pos, end_pos, ptr;
-                var loop_phase, dist_to_edge, mod_env;
                 var play_sig, deg_lpf, deg_hpf, corrosion_am, loop_ero, loop_dust_trig, loop_dropout_env, loop_gain_loss;
                 var sat_drive;
                 var dynamic_cutoff, sig_out, in_sig;
@@ -221,23 +220,15 @@ Engine_Airports : CroneEngine {
                     Select.kr(l_deg_arr[i] > 0.6, [LinLin.kr(l_deg_arr[i], 0.4, 0.6, 0.002, 0.02), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.6, 0.8, 0.02, 0.04), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 0.04, 0.08)])])
                 ]);
                 flutter_mod = Lag.kr(flutter_mod, 0.1);
-
-                // Compute loop boundaries first (needed for anti-click phase tracker)
-                loop_len_samps = l_length_arr[i].max(0.001) * SampleRate.ir;
-                start_pos = Lag.kr(l_start_arr[i], 0.1) * loop_len_samps;
-                end_pos = (Lag.kr(l_end_arr[i], 0.1) * loop_len_samps).max(start_pos + 10);
-
-                // Anti-click: independent phase tracker (0-1) with correct normalized step
-                // step = rate_slew * BufRateScale / loop_length → completes 0→1 per loop pass
-                loop_phase = Phasor.ar(0, rate_slew * BufRateScale.kr(b_idx) / (end_pos - start_pos).max(1), 0.0, 1.0, 0.0);
-                dist_to_edge = loop_phase.min(1.0 - loop_phase);
-                mod_env = (dist_to_edge / 0.003).min(1.0); // 0.3% of loop = ~5ms fade
-                // Flutter fades to 0 at boundaries → no phase drift accumulation → no click
-                final_rate = rate_slew * (1.0 + OnePole.ar(LFNoise2.ar(4+(i*1.5)) * (flutter_mod * 0.5), 0.5) * mod_env);
+                final_rate = rate_slew * (1.0 + OnePole.ar(LFNoise2.ar(4+(i*1.5)) * (flutter_mod * 0.5), 0.5));
 
                 organic_brake_hpf = LinExp.kr(rate_slew.abs + 0.001, 0.001, 1.0, 250, 10);
                 organic_brake_hpf = Lag.kr(organic_brake_hpf, 0.1);
                 flux_gain = (rate_slew.abs * 5.0).clip(0, 1).pow(3);
+
+                loop_len_samps = l_length_arr[i].max(0.001) * SampleRate.ir;
+                start_pos = Lag.kr(l_start_arr[i], 0.1) * loop_len_samps;
+                end_pos = (Lag.kr(l_end_arr[i], 0.1) * loop_len_samps).max(start_pos + 10);
 
                 ptr = Phasor.ar(l_seek_t_arr[i], final_rate * BufRateScale.kr(b_idx), start_pos, end_pos, l_seek_p_arr[i] * loop_len_samps);
 
