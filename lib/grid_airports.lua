@@ -106,11 +106,13 @@ local function draw_row5(state)
   for i=1, 11 do
      local val = VS_VALS[i]
      local x = i + 5
-     local b = DIM_BRIGHT
+     local b = 0
      if math.abs(s - val) < 0.01 then
         b = MAX_BRIGHT  -- Exact match (including 0x when speed=0)
-     elseif (s > 0 and val > 0 and s >= val) or (s < 0 and val < 0 and s <= val) then
-        b = MED_BRIGHT  -- Fill: speed has passed this anchor
+     elseif (s > 0 and val >= 0 and s >= val) or (s < 0 and val <= 0 and s <= val) then
+        b = MED_BRIGHT  -- Fill: speed has passed this anchor (includes 0x)
+     elseif val == 0 then
+        b = 1  -- 0x always visible as frontier marker
      end
      led_buf(x, 5, b)
   end
@@ -140,7 +142,7 @@ local function draw_row5(state)
      end
      
      -- Draw gaussian droplet — max brightness always < anchors (MED_BRIGHT=8)
-     local droplet_max_b = 6  -- Subtle, always less than anchors
+     local droplet_max_b = 8  -- Visible but less than anchor fills (MED_BRIGHT)
      for i=1, 11 do
         local x = i + 5
         local dist = math.abs(i - droplet_pos)
@@ -225,11 +227,12 @@ local function draw_row8(state)
   local now = util.time()
   local pulse_seq = math.floor(math.sin(now * 5) * 4 + 7)
   
-  -- MOM (X=1) — dim fixed, bright when momentary mode or aux held
+  -- MOM (X=1) — OFF=momentary (default), ON=latched. Bright when latched.
   if state.mom_aux_held then
      led_buf(1, 8, MED_BRIGHT)
   else
-     led_buf(1, 8, state.grid_momentary_mode and MAX_BRIGHT or 2)
+     -- grid_momentary_mode=true means momentary (default, OFF), false means latched (ON)
+     led_buf(1, 8, state.grid_momentary_mode and 2 or 11)
   end
   
   -- SHIFT (X=2) — bright when active, dim when inactive
@@ -654,14 +657,14 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
      local intensity = (x-1)%4 + 1
      local amt = intensity * 0.25
      if state.grid_momentary_mode then
-        -- MOM ON: momentary — press=brake, release=0
+        -- MOM OFF (default): momentary — press=brake, release=0
         if z == 1 then
            state.tracks[trk_idx].brake_amt = math.max(state.tracks[trk_idx].brake_amt or 0, amt)
         elseif z == 0 then
            state.tracks[trk_idx].brake_amt = 0
         end
      else
-        -- MOM OFF: toggle — press toggles, release does nothing
+        -- MOM ON (latched): toggle — press toggles, release does nothing
         if z == 1 then
            local current = state.tracks[trk_idx].brake_amt or 0
            if math.abs(current - amt) < 0.01 then

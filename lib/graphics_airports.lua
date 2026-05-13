@@ -154,13 +154,14 @@ local function draw_tricks_page(state)
           if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
           screen.move(6, y); screen.text(items[i])
           screen.level(15); screen.move(80, y); screen.text_right(values[i])
+          -- Speed mode name next to SPEED row (i=1)
+          if i == 1 then
+             local mode_name = SPEED_MODE_NAMES[t.rnd_speed_mode or 1] or "FREE"
+             screen.level(8); screen.move(128, y); screen.text_right(mode_name)
+          end
        end
        
-       -- Speed mode display on Y=49 (right of VOLUME row)
-       local mode_name = SPEED_MODE_NAMES[t.rnd_speed_mode or 1] or "FREE"
-       screen.level(15); screen.move(128, 49); screen.text_right(mode_name)
-       
-       screen.level(3); screen.move(0, 60); screen.text("E2=NAV  K2◄SPD►K3")
+       screen.level(3); screen.move(0, 60); screen.text("E2=NAV  E3=VAL  K2/3=SCALE")
        
     elseif config_type == "warp" then
       screen.level(4); screen.move(64, 8); screen.text_center("WARP CONFIG")

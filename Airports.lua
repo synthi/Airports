@@ -151,11 +151,11 @@ function enc(n, d)
               t.jump_rnd_lpos = util.clamp(t.jump_rnd_lpos + d * 0.01, 0, 1)
            end
         elseif config_type == "random" then
-           if cursor == 1 then t.rnd_speed = not t.rnd_speed
-           elseif cursor == 2 then t.rnd_deg = not t.rnd_deg
-           elseif cursor == 3 then t.rnd_loop = not t.rnd_loop
-           elseif cursor == 4 then t.rnd_eq = not t.rnd_eq
-           elseif cursor == 5 then t.rnd_vol = not t.rnd_vol end
+           local rnd_ids = {"rnd_trk"..sel.."_speed", "rnd_trk"..sel.."_deg", "rnd_trk"..sel.."_loop", "rnd_trk"..sel.."_eq", "rnd_trk"..sel.."_vol"}
+           if cursor >= 1 and cursor <= 5 then
+              local id = rnd_ids[cursor]
+              params:set(id, params:get(id) == 1 and 2 or 1)
+           end
         elseif config_type == "warp" then
            if cursor == 1 then
               state.warp_mode = (state.warp_mode + math.abs(d)) % 2
@@ -275,14 +275,15 @@ function key(n, z)
       if state.config_page_type == "random" then
          if n == 2 then
             -- K2: prev speed mode
-            local mode = (t.rnd_speed_mode or 1) - 1
-            if mode < 1 then mode = 5 end
-            t.rnd_speed_mode = mode
+            local id = "rnd_trk"..sel.."_speed_mode"
+            local cur = params:get(id)
+            params:set(id, cur <= 1 and 5 or cur - 1)
             return
          elseif n == 3 then
             -- K3: next speed mode
-            local mode = ((t.rnd_speed_mode or 1) % 5) + 1
-            t.rnd_speed_mode = mode
+            local id = "rnd_trk"..sel.."_speed_mode"
+            local cur = params:get(id)
+            params:set(id, cur >= 5 and 1 or cur + 1)
             return
          end
       end
@@ -652,14 +653,15 @@ function init()
   params:add{type = "control", id = "limiter_ceil", name = "Limiter Ceil", controlspec = controlspec.new(-6.0, 0.0, 'lin', 0.1, -0.1, "dB"), formatter = fmt_raw_db, action = function(x) set_p("limiter_ceil", x) end}
   params:add{type = "control", id = "balance", name = "Balance", controlspec = controlspec.new(-1.0, 1.0, 'lin', 0.01, 0.0), formatter = function(p) return string.format("%.2f", p:get()) end, action = function(x) set_p("balance", x) end}
   
-  -- Randomize setup
-  params:add_group("RANDOMIZE SETUP", 20)
+  -- Randomize setup (option params — saved with pset)
+  params:add_group("RANDOMIZE SETUP", 24)
   for i=1, 4 do
-    params:add{type = "trigger", id = "rnd_trk"..i.."_speed", name = "Trk"..i.." Speed", action = function() state.tracks[i].rnd_speed = not state.tracks[i].rnd_speed; update_str("rnd_trk"..i.."_speed") end}
-    params:add{type = "trigger", id = "rnd_trk"..i.."_deg", name = "Trk"..i.." Degrade", action = function() state.tracks[i].rnd_deg = not state.tracks[i].rnd_deg; update_str("rnd_trk"..i.."_deg") end}
-    params:add{type = "trigger", id = "rnd_trk"..i.."_loop", name = "Trk"..i.." Loop", action = function() state.tracks[i].rnd_loop = not state.tracks[i].rnd_loop; update_str("rnd_trk"..i.."_loop") end}
-    params:add{type = "trigger", id = "rnd_trk"..i.."_eq", name = "Trk"..i.." EQ/Filter", action = function() state.tracks[i].rnd_eq = not state.tracks[i].rnd_eq; update_str("rnd_trk"..i.."_eq") end}
-    params:add{type = "trigger", id = "rnd_trk"..i.."_vol", name = "Trk"..i.." Volume", action = function() state.tracks[i].rnd_vol = not state.tracks[i].rnd_vol; update_str("rnd_trk"..i.."_vol") end}
+    params:add{type = "option", id = "rnd_trk"..i.."_speed", name = "Trk"..i.." Speed", options = {"OFF","ON"}, default = 2, action = function(x) state.tracks[i].rnd_speed = (x == 2) end}
+    params:add{type = "option", id = "rnd_trk"..i.."_deg", name = "Trk"..i.." Degrade", options = {"OFF","ON"}, default = 2, action = function(x) state.tracks[i].rnd_deg = (x == 2) end}
+    params:add{type = "option", id = "rnd_trk"..i.."_loop", name = "Trk"..i.." Loop", options = {"OFF","ON"}, default = 1, action = function(x) state.tracks[i].rnd_loop = (x == 2) end}
+    params:add{type = "option", id = "rnd_trk"..i.."_eq", name = "Trk"..i.." EQ/Filter", options = {"OFF","ON"}, default = 1, action = function(x) state.tracks[i].rnd_eq = (x == 2) end}
+    params:add{type = "option", id = "rnd_trk"..i.."_vol", name = "Trk"..i.." Volume", options = {"OFF","ON"}, default = 1, action = function(x) state.tracks[i].rnd_vol = (x == 2) end}
+    params:add{type = "option", id = "rnd_trk"..i.."_speed_mode", name = "Trk"..i.." Scale", options = {"FREE","OCTAVES","OCT+5TH","SEMI","DIATONIC"}, default = 1, action = function(x) state.tracks[i].rnd_speed_mode = x end}
   end
   
   -- Track parameters (4 tracks)

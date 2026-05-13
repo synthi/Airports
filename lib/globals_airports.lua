@@ -82,7 +82,7 @@ function Globals.new()
   -- Grid state
   s.grid_shift_active = false
   s.grid_track_held = false
-  s.grid_momentary_mode = false
+  s.grid_momentary_mode = true  -- true=momentary (default, grid OFF), false=latched (grid ON)
   s.grid_keys_held = {}
   for i=1, 4 do s.grid_keys_held[i] = {} end
   s.seek_memory = {}
