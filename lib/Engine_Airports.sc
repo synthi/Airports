@@ -280,7 +280,7 @@ Engine_Airports : CroneEngine {
                 // dyn_stab = 1.0 - (amp_det.max(0.8) - 0.8 * 0.7).clip(0, 0.6);
                 // safe_fb = Select.kr(gate_play < 0.5, [fb_comp_curve * dyn_stab, DC.kr(1.0)]);
                 // Feedback compensation: boost to counteract LPF + corrosion + tanh loss from degrade
-                safe_fb = 1.0 + (l_deg_arr[i] * 0.46; //Feedback compensation
+                safe_fb = 1.0 + (l_deg_arr[i] * 0.46); //Feedback compensation
 
                 write_sig = (play_sig * l_dub_arr[i] * safe_fb) + (in_sig * l_rec_lvl_arr[i].dbamp * gate_rec);
                 BufWr.ar(write_sig, b_idx, ptr);
