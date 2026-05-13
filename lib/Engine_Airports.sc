@@ -253,8 +253,9 @@ Engine_Airports : CroneEngine {
                 loop_dropout_env = Decay.kr(loop_dust_trig, 0.1);
                 loop_gain_loss = (loop_dropout_env * loop_ero).clip(0, 0.9);
                 play_sig = play_sig * (1.0 - loop_gain_loss);
-                sat_drive = Select.kr(l_deg_arr[i] > 0.2, [DC.kr(1.0), Select.kr(l_deg_arr[i] > 0.5, [LinLin.kr(l_deg_arr[i], 0.2, 0.5, 1.0, 1.5), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.5, 0.8, 1.5, 3.0), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 3.0, 4.5)])])]);
-                play_sig = Select.ar(l_deg_arr[i] >= 0.2, [(play_sig * sat_drive).tanh, play_sig]);
+                sat_drive = Lag.kr(Select.kr(l_deg_arr[i] > 0.2, [DC.kr(1.0), Select.kr(l_deg_arr[i] > 0.5, [LinLin.kr(l_deg_arr[i], 0.2, 0.5, 1.0, 1.5), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.5, 0.8, 1.5, 3.0), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 3.0, 4.5)])])]), 0.1);
+                // Always tanh — sat_drive smoothed via Lag: at deg<0.2 drive=1.0 (transparent)
+                play_sig = (play_sig * sat_drive).tanh;
                 dynamic_cutoff = (rate_slew.abs * 20000).clip(50, 20000);
                 play_sig = LPF.ar(play_sig, dynamic_cutoff);
                 sig_out = play_sig;
@@ -280,7 +281,7 @@ Engine_Airports : CroneEngine {
                 // dyn_stab = 1.0 - (amp_det.max(0.8) - 0.8 * 0.7).clip(0, 0.6);
                 // safe_fb = Select.kr(gate_play < 0.5, [fb_comp_curve * dyn_stab, DC.kr(1.0)]);
                 // Feedback compensation: boost to counteract LPF + corrosion + tanh loss from degrade
-                safe_fb = 1.0 + (l_deg_arr[i] * 0.46); //Feedback compensation
+                safe_fb = Lag.kr(1.0 + (l_deg_arr[i] * 0.46), 0.1); //Feedback compensation (smoothed)
 
                 write_sig = (play_sig * l_dub_arr[i] * safe_fb) + (in_sig * l_rec_lvl_arr[i].dbamp * gate_rec);
                 BufWr.ar(write_sig, b_idx, ptr);
@@ -290,7 +291,7 @@ Engine_Airports : CroneEngine {
                 // PHYSICS
                 tape_physics_cutoff = LinExp.ar(final_rate.abs.max(0.01), 0.25, 1.0, 6000, 17000).clip(1000, 20000);
                 output_sig = LPF.ar(output_sig, tape_physics_cutoff);
-                deg_hpf = Select.kr(l_deg_arr[i] > 0.5, [LinExp.kr(l_deg_arr[i], 0.0, 0.5, 10, 60), Select.kr(l_deg_arr[i] > 0.8, [LinExp.kr(l_deg_arr[i], 0.5, 0.8, 60, 100), LinExp.kr(l_deg_arr[i], 0.8, 1.0, 100, 160)])]);
+                deg_hpf = Lag.kr(Select.kr(l_deg_arr[i] > 0.5, [LinExp.kr(l_deg_arr[i], 0.0, 0.5, 10, 60), Select.kr(l_deg_arr[i] > 0.8, [LinExp.kr(l_deg_arr[i], 0.5, 0.8, 60, 100), LinExp.kr(l_deg_arr[i], 0.8, 1.0, 100, 160)])]), 0.1);
                 output_sig = HPF.ar(output_sig, deg_hpf);
                 output_sig = HPF.ar(output_sig, organic_brake_hpf);
                 output_sig = output_sig * flux_gain;
