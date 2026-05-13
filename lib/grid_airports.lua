@@ -21,6 +21,9 @@ function Grid.init(state, device)
   for i=1, 4 do state.grid_keys_held[i] = {} end
   state.mom_aux_held = false
   state.mom_press_time = 0
+  state.grid_shift_latched = false
+  state.grid_shift_pending_unlatch = false
+  state.grid_shift_last_press = 0
   state.seek_memory = {}
   state.ribbon_memory = {}
   state.ribbon_press_time = 0
@@ -79,7 +82,7 @@ local function draw_loopers(state)
   end
 end
 
--- Draw row 5: Track select + Speed ribbon
+-- Draw row 5: Track select + Speed ribbon with droplet
 local function draw_row5(state)
   -- Track select (X=1-4) — fixed brightness, no animation
   for i=1, 4 do
@@ -94,14 +97,58 @@ local function draw_row5(state)
   -- Speed ribbon (X=6-16)
   local t = state.tracks[state.track_sel]
   local s = t.speed or 1
+  
+  -- Step 1: Base brightness for each anchor
+  -- 0x (val=0.0) has base DIM_BRIGHT always (frontier marker),
+  -- unless speed exactly 0.0 → MAX_BRIGHT like any anchor
   for i=1, 11 do
      local val = VS_VALS[i]
      local x = i + 5
      local b = DIM_BRIGHT
-     if math.abs(s - val) < 0.01 then b = MAX_BRIGHT
-     elseif (s > 0 and val > 0 and s >= val) or (s < 0 and val < 0 and s <= val) then b = MED_BRIGHT
-     elseif val == 0 and math.abs(s) < 0.01 then b = MAX_BRIGHT end
+     if math.abs(s - val) < 0.01 then
+        b = MAX_BRIGHT  -- Exact match (including 0x when speed=0)
+     elseif (s > 0 and val > 0 and s >= val) or (s < 0 and val < 0 and s <= val) then
+        b = MED_BRIGHT  -- Fill: speed has passed this anchor
+     end
      led_buf(x, 5, b)
+  end
+  
+  -- Step 2: Droplet for intermediate values
+  -- Check if speed is NOT exactly on any anchor
+  local is_exact = false
+  for i=1, 11 do
+     if math.abs(s - VS_VALS[i]) < 0.01 then is_exact = true; break end
+  end
+  
+  if not is_exact then
+     -- Find continuous position in the ribbon
+     local s_clamped = util.clamp(s, VS_VALS[1], VS_VALS[11])
+     local lower_idx = 1
+     for i=2, 11 do
+        if VS_VALS[i] <= s_clamped then lower_idx = i end
+     end
+     
+     local droplet_pos = lower_idx  -- continuous index (1-11)
+     if lower_idx < 11 then
+        local v_low = VS_VALS[lower_idx]
+        local v_high = VS_VALS[lower_idx + 1]
+        if v_high ~= v_low then
+           droplet_pos = lower_idx + ((s_clamped - v_low) / (v_high - v_low))
+        end
+     end
+     
+     -- Draw gaussian droplet — max brightness always < anchors (MED_BRIGHT=8)
+     local droplet_max_b = 6  -- Subtle, always less than anchors
+     for i=1, 11 do
+        local x = i + 5
+        local dist = math.abs(i - droplet_pos)
+        if dist < 2.0 then
+           local intensity = (1.0 - (dist / 2.0)) ^ 1.8
+           local droplet_b = math.floor(droplet_max_b * intensity)
+           local current = next_frame[x][5] or 0
+           led_buf(x, 5, math.max(current, droplet_b))
+        end
+     end
   end
 end
 
@@ -362,13 +409,36 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
   -- ROW 8: MOM, SHIFT, SEQS, PRESETS, PAGES
   -- =====================
   if y == 8 then
-     -- SHIFT (X=2)
+     -- SHIFT (X=2) — double-click to latch, single tap to release
      if x == 2 then
-        state.grid_shift_active = (z == 1)
-        for i=1, 8 do state.fader_latched[i] = false end
-        if z == 0 then
+        if z == 1 then
+           local time_since_last = now - (state.grid_shift_last_press or 0)
+           if state.grid_shift_latched then
+              -- Already latched: mark for unlatch on release
+              state.grid_shift_pending_unlatch = true
+           elseif time_since_last < 0.3 then
+              -- Double-click: latch shift ON
+              state.grid_shift_latched = true
+              state.grid_shift_active = true
+           else
+              -- Single press: momentary ON
+              state.grid_shift_active = true
+           end
+           state.grid_shift_last_press = now
+           for i=1, 8 do state.fader_latched[i] = false end
+        elseif z == 0 then
+           if state.grid_shift_pending_unlatch then
+              -- Latched mode: release after press → unlatch
+              state.grid_shift_latched = false
+              state.grid_shift_active = false
+              state.grid_shift_pending_unlatch = false
+           elseif not state.grid_shift_latched then
+              -- Momentary release
+              state.grid_shift_active = false
+           end
+           for i=1, 8 do state.fader_latched[i] = false end
            -- Close config page if leaving shift
-           if state.config_page_active then
+           if not state.grid_shift_active and state.config_page_active then
               state.config_page_active = false
               state.current_page = state.config_previous_page
               state.config_page_type = ""
