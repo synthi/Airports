@@ -470,47 +470,58 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         return
      end
      
-     -- SEQUENCERS (X=3-6) — Shift+Seq = play/stop/pause
+     -- SEQUENCERS (X=3-6)
+     -- States: 0=Empty, 1=Recording, 2=Playing, 3=Stopped, 4=Overdub
+     -- Normal: 0→1→2↔4 cycle. Shift: 2/4→3, 3→2. Long hold→Clear
      if x >= 3 and x <= 6 then
         local slot = x - 2
         if state.grid_shift_active then
-           -- Shift + Seq button = play/stop/pause
+           -- Shift + Seq transport = play/stop
            if z == 1 then
               local ss = state.seq_slots[slot].state
-              if ss == 1 then
-                 -- Recording → stop recording + play
-                 state.seq_slots[slot].duration = now - state.seq_slots[slot].start_time
-                 if state.seq_slots[slot].duration < 0.05 then state.seq_slots[slot].duration = 0.5 end
-                 state.seq_slots[slot].state = 4
-                 state.seq_slots[slot].start_time = now
-                 state.seq_slots[slot].step = 1
-              elseif ss == 4 then
-                 -- Playing → Paused
+              if ss == 2 or ss == 4 then
+                 -- Playing or Overdub → Stopped
                  state.seq_slots[slot].state = 3
               elseif ss == 3 then
-                 -- Paused → Playing (resume)
-                 state.seq_slots[slot].state = 4
+                 -- Stopped → Playing (resume)
+                 state.seq_slots[slot].state = 2
                  state.seq_slots[slot].start_time = now
+                 state.seq_slots[slot].step = 1
               end
            end
         else
-           -- Normal: record/ready
+           -- Normal transport
            if z == 1 then
-              if state.seq_slots[slot].state == 0 then
-                 -- Empty → Record immediately (first press)
+              local ss = state.seq_slots[slot].state
+              if ss == 0 then
+                 -- Empty → Record
                  state.seq_slots[slot].state = 1
                  state.seq_slots[slot].start_time = now
                  state.seq_slots[slot].data = {}
                  state.seq_slots[slot].step = 1
                  state.seq_slots[slot].duration = 0
-              elseif state.seq_slots[slot].state == 1 then
-                 -- Recording → Ready (data saved, waiting for shift+play)
+              elseif ss == 1 then
+                 -- Recording → Playing
                  state.seq_slots[slot].duration = now - state.seq_slots[slot].start_time
                  if state.seq_slots[slot].duration < 0.05 then state.seq_slots[slot].duration = 0.5 end
-                 state.seq_slots[slot].state = 3  -- Paused/Ready
+                 state.seq_slots[slot].state = 2
+                 state.seq_slots[slot].start_time = now
+                 state.seq_slots[slot].step = 1
+              elseif ss == 2 then
+                 -- Playing → Overdub
+                 state.seq_slots[slot].state = 4
+                 state.seq_slots[slot].start_time = now
+              elseif ss == 4 then
+                 -- Overdub → Playing
+                 state.seq_slots[slot].state = 2
+              elseif ss == 3 then
+                 -- Stopped → Playing
+                 state.seq_slots[slot].state = 2
+                 state.seq_slots[slot].start_time = now
+                 state.seq_slots[slot].step = 1
               end
            elseif z == 0 then
-              -- Hold > 1s clears seq
+              -- Long hold > 1s clears seq
               local hold_time = now - state.grid_debounce[x][y]
               if hold_time > 1.0 and state.seq_slots[slot].state ~= 0 then
                  state.seq_slots[slot].state = 0
@@ -787,7 +798,7 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         return
      end
      
-     -- RANDOM (X=11-14)
+     -- RANDOM (X=11-14) — press saves src+targets, release morphs with hold² slew
      if x >= 11 and x <= 14 then
         local trk = x - 10
         if z == 1 then
@@ -800,7 +811,34 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
                state.config_page_track = trk
                state.config_page_cursor = 1
            else
+              -- Press: save current values + generate targets
+              local t = state.tracks[trk]
+              t.rnd_press_time = now
+              t.rnd_morph_src = {
+                 speed = t.speed, vol = t.vol,
+                 loop_start = t.loop_start, loop_end = t.loop_end,
+                 wow_macro = t.wow_macro,
+                 l_low = t.l_low, l_high = t.l_high,
+                 l_filter = t.l_filter, l_pan = t.l_pan, l_width = t.l_width
+              }
+              t.rnd_morph_targets = Loopers.generate_random_targets(trk, state)
+              -- Instant apply for quick tap feedback
               Loopers.randomize_track(trk, state)
+           end
+        elseif z == 0 then
+           if not state.grid_shift_active then
+              local t = state.tracks[trk]
+              if t.rnd_press_time and t.rnd_morph_src and t.rnd_morph_targets then
+                 local hold_time = now - t.rnd_press_time
+                 if hold_time > 0.15 then
+                    -- Held: morph from src to targets with hold² slew
+                    local morph_time = math.max(0.05, hold_time * hold_time)
+                    Loopers.randomize_track_morph(trk, state, morph_time, t.rnd_morph_src, t.rnd_morph_targets)
+                 end
+                 t.rnd_press_time = nil
+                 t.rnd_morph_src = nil
+                 t.rnd_morph_targets = nil
+              end
            end
         end
         return

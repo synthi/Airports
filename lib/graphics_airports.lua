@@ -13,6 +13,8 @@ local pi = math.pi
 local clamp = util.clamp
 local linlin = util.linlin
 
+local SPEED_MODE_NAMES = {"FREE", "OCTAVES", "OCT+5TH", "SEMI", "DIATONIC"}
+
 local function get_txt(id) return state.str_cache[id] or "..." end
 
 local function draw_header_right(label) screen.level(15); screen.move(128, 8); screen.text_right(label) end

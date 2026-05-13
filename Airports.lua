@@ -378,7 +378,8 @@ end
 function rec_play_tick_tape(slot)
     while true do
       local r = state.seq_slots[slot]
-      if r.state ~= 4 then clock.sleep(0.1)
+      -- Play back during Playing(2) and Overdub(4)
+      if r.state ~= 2 and r.state ~= 4 then clock.sleep(0.1)
       else
          local event = r.data[r.step]
          if event then

@@ -263,6 +263,67 @@ function Loopers.get_speed_mode_name(mode)
    return SPEED_MODE_NAMES[mode] or "FREE"
 end
 
+function Loopers.generate_random_targets(idx, state)
+   local t = state.tracks[idx]
+   local targets = {}
+   
+   if t.rnd_speed then
+      local mode = t.rnd_speed_mode or 1
+      if mode == 1 then
+         targets.speed = math.random() * 4 - 2
+      else
+         local pool = SPEED_MODES[mode]
+         if pool and #pool > 0 then targets.speed = pool[math.random(#pool)]
+         else targets.speed = math.random() * 4 - 2 end
+      end
+   end
+   if t.rnd_deg then targets.wow_macro = math.random() end
+   if t.rnd_loop then
+      local s = math.random() * 0.8
+      local e = s + (math.random() * (1 - s))
+      targets.loop_start = s; targets.loop_end = e
+   end
+   if t.rnd_eq then
+      targets.l_low = (math.random() * 36) - 18
+      targets.l_high = (math.random() * 36) - 18
+      targets.l_filter = math.random()
+      targets.l_pan = (math.random() * 2) - 1
+      targets.l_width = math.random() * 2
+   end
+   if t.rnd_vol then
+      targets.vol = math.random() * 0.5 + 0.3
+   end
+   
+   return targets
+end
+
+function Loopers.randomize_track_morph(idx, state, morph_time, src, targets)
+   local t = state.tracks[idx]
+   if morph_time < 0.05 then
+      for k, v in pairs(targets) do t[k] = v end
+      Loopers.refresh(idx, state)
+      return
+   end
+   clock.run(function()
+      local start_time = util.time()
+      while true do
+         local elapsed = util.time() - start_time
+         local progress = elapsed / morph_time
+         if progress >= 1.0 then
+            for k, v in pairs(targets) do t[k] = v end
+            Loopers.refresh(idx, state)
+            break
+         end
+         for k, v in pairs(targets) do
+            local s = src[k]
+            if s then t[k] = s + ((v - s) * progress) end
+         end
+         Loopers.refresh(idx, state)
+         clock.sleep(0.02)
+      end
+   end)
+end
+
 function Loopers.randomize_track(idx, state)
    local t = state.tracks[idx]
    if not t then return end
