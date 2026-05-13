@@ -133,30 +133,34 @@ local function draw_tricks_page(state)
          screen.level(15); screen.move(80, y); screen.text_right(values[i])
       end
       
-      screen.level(3); screen.move(0, 60); screen.text("K3=EXIT  E2=NAV  E3=VAL")
-      
-   elseif config_type == "random" then
-      screen.level(4); screen.move(64, 8); screen.text_center("RANDOM CONFIG — TRK " .. sel)
-      
-      local items = {"SPEED", "DEGRADE", "LOOP POS", "EQ/FILTER", "VOLUME"}
-      local values = {
-         (t.rnd_speed and "ON" or "OFF"),
-         (t.rnd_deg and "ON" or "OFF"),
-         (t.rnd_loop and "ON" or "OFF"),
-         (t.rnd_eq and "ON" or "OFF"),
-         (t.rnd_vol and "ON" or "OFF")
-      }
-      
-      for i=1, #items do
-         local y = 14 + (i * 7)
-         if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
-         screen.move(6, y); screen.text(items[i])
-         screen.level(15); screen.move(80, y); screen.text_right(values[i])
-      end
-      
-      screen.level(3); screen.move(0, 60); screen.text("K3=EXIT  E2=NAV  E3=TOG")
-      
-   elseif config_type == "warp" then
+       screen.level(3); screen.move(0, 60); screen.text("E2=NAV  E3=VAL")
+       
+    elseif config_type == "random" then
+       screen.level(4); screen.move(64, 8); screen.text_center("RANDOM CONFIG — TRK " .. sel)
+       
+       local items = {"SPEED", "DEGRADE", "LOOP POS", "EQ/FILTER", "VOLUME"}
+       local values = {
+          (t.rnd_speed and "ON" or "OFF"),
+          (t.rnd_deg and "ON" or "OFF"),
+          (t.rnd_loop and "ON" or "OFF"),
+          (t.rnd_eq and "ON" or "OFF"),
+          (t.rnd_vol and "ON" or "OFF")
+       }
+       
+       for i=1, #items do
+          local y = 14 + (i * 7)
+          if cursor == i then screen.level(15); screen.move(0, y); screen.text(">") else screen.level(3) end
+          screen.move(6, y); screen.text(items[i])
+          screen.level(15); screen.move(80, y); screen.text_right(values[i])
+       end
+       
+       -- Speed mode display on Y=49 (right of VOLUME row)
+       local mode_name = SPEED_MODE_NAMES[t.rnd_speed_mode or 1] or "FREE"
+       screen.level(15); screen.move(128, 49); screen.text_right(mode_name)
+       
+       screen.level(3); screen.move(0, 60); screen.text("E2=NAV  K2◄SPD►K3")
+       
+    elseif config_type == "warp" then
       screen.level(4); screen.move(64, 8); screen.text_center("WARP CONFIG")
       
       local mode_txt = (state.warp_mode == 0) and "MULTIPLY" or "DIVIDE"

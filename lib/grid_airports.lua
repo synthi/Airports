@@ -53,12 +53,14 @@ local function draw_loopers(state)
     local bg_bright = 0
     if track.state == 2 then bg_bright = rec_pulse
     elseif track.state == 4 then bg_bright = dub_pulse
+    elseif track.state == 5 and (track.rec_len or 0) > 0.002 then bg_bright = 1
     end
     
     local s = math.floor((track.loop_start or 0) * 15) + 1
     local e = math.floor((track.loop_end or 1) * 15) + 1
     
-    local has_audio = (track.state == 2 or track.state == 3 or track.state == 4 or (track.state == 5 and (track.rec_len or 0) > 0.002))
+    -- State 5 (stopped): no playhead, just dim fill
+    local has_audio = (track.state == 2 or track.state == 3 or track.state == 4)
     local head_pos = (track.play_pos or 0) * 15 + 1
     local head_max_b = 0
     if has_audio then head_max_b = MAX_BRIGHT
@@ -468,36 +470,54 @@ function Grid.key(x, y, z, state, engine, simulated_page, target_track)
         return
      end
      
-     -- SEQUENCERS (X=3-6) — First press = Record, second = Play
+     -- SEQUENCERS (X=3-6) — Shift+Seq = play/stop/pause
      if x >= 3 and x <= 6 then
         local slot = x - 2
-        if z == 1 then
-           if state.seq_slots[slot].state == 0 then
-              -- Empty → Record immediately (first press)
-              state.seq_slots[slot].state = 1
-              state.seq_slots[slot].start_time = now
-              state.seq_slots[slot].data = {}
-              state.seq_slots[slot].step = 1
-              state.seq_slots[slot].duration = 0
-           elseif state.seq_slots[slot].state == 1 then
-              -- Recording → Play directly (second press)
-              state.seq_slots[slot].duration = now - state.seq_slots[slot].start_time
-              if state.seq_slots[slot].duration < 0.05 then state.seq_slots[slot].duration = 0.5 end
-              state.seq_slots[slot].state = 4
-              state.seq_slots[slot].start_time = now
-              state.seq_slots[slot].step = 1
-           elseif state.seq_slots[slot].state == 4 then
-              -- Playing → Overdub (re-arm recording within existing loop)
-              state.seq_slots[slot].start_time = now
+        if state.grid_shift_active then
+           -- Shift + Seq button = play/stop/pause
+           if z == 1 then
+              local ss = state.seq_slots[slot].state
+              if ss == 1 then
+                 -- Recording → stop recording + play
+                 state.seq_slots[slot].duration = now - state.seq_slots[slot].start_time
+                 if state.seq_slots[slot].duration < 0.05 then state.seq_slots[slot].duration = 0.5 end
+                 state.seq_slots[slot].state = 4
+                 state.seq_slots[slot].start_time = now
+                 state.seq_slots[slot].step = 1
+              elseif ss == 4 then
+                 -- Playing → Paused
+                 state.seq_slots[slot].state = 3
+              elseif ss == 3 then
+                 -- Paused → Playing (resume)
+                 state.seq_slots[slot].state = 4
+                 state.seq_slots[slot].start_time = now
+              end
            end
-        elseif z == 0 then
-           -- Hold > 1s clears seq
-           local hold_time = now - state.grid_debounce[x][y]
-           if hold_time > 1.0 and state.seq_slots[slot].state ~= 0 then
-              state.seq_slots[slot].state = 0
-              state.seq_slots[slot].data = {}
-              state.seq_slots[slot].duration = 0
-              state.seq_slots[slot].step = 1
+        else
+           -- Normal: record/ready
+           if z == 1 then
+              if state.seq_slots[slot].state == 0 then
+                 -- Empty → Record immediately (first press)
+                 state.seq_slots[slot].state = 1
+                 state.seq_slots[slot].start_time = now
+                 state.seq_slots[slot].data = {}
+                 state.seq_slots[slot].step = 1
+                 state.seq_slots[slot].duration = 0
+              elseif state.seq_slots[slot].state == 1 then
+                 -- Recording → Ready (data saved, waiting for shift+play)
+                 state.seq_slots[slot].duration = now - state.seq_slots[slot].start_time
+                 if state.seq_slots[slot].duration < 0.05 then state.seq_slots[slot].duration = 0.5 end
+                 state.seq_slots[slot].state = 3  -- Paused/Ready
+              end
+           elseif z == 0 then
+              -- Hold > 1s clears seq
+              local hold_time = now - state.grid_debounce[x][y]
+              if hold_time > 1.0 and state.seq_slots[slot].state ~= 0 then
+                 state.seq_slots[slot].state = 0
+                 state.seq_slots[slot].data = {}
+                 state.seq_slots[slot].duration = 0
+                 state.seq_slots[slot].step = 1
+              end
            end
         end
         -- Update sequencer_active flag

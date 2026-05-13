@@ -55,6 +55,7 @@ function Globals.new()
       rnd_loop = false,
       rnd_eq = false,
       rnd_vol = false,
+      rnd_speed_mode = 1,  -- 1=Free, 2=Octaves, 3=Oct+5th, 4=Semitones, 5=Diatonic
       fade_out = 0.0,
       fade_vca = 1.0,
       fade_clock = nil

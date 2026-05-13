@@ -268,13 +268,25 @@ function key(n, z)
      return
   end
   
-  -- K3 in config pages = exit
-  if state.config_page_active and n == 3 and z == 1 then
-     state.config_page_active = false
-     state.current_page = state.config_previous_page
-     state.config_page_type = ""
-     return
-  end
+   -- K2/K3 in config pages = speed mode cycling (random config only)
+   if state.config_page_active and z == 1 then
+      local sel = state.config_page_track or state.track_sel
+      local t = state.tracks[sel]
+      if state.config_page_type == "random" then
+         if n == 2 then
+            -- K2: prev speed mode
+            local mode = (t.rnd_speed_mode or 1) - 1
+            if mode < 1 then mode = 5 end
+            t.rnd_speed_mode = mode
+            return
+         elseif n == 3 then
+            -- K3: next speed mode
+            local mode = ((t.rnd_speed_mode or 1) % 5) + 1
+            t.rnd_speed_mode = mode
+            return
+         end
+      end
+   end
   
   -- Page navigation with K1+Key2/Key3
   if state.k1_held and z == 1 then

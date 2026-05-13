@@ -224,12 +224,61 @@ function Loopers.transport_rec(state, idx, action_type)
    end
 end
 
+-- Speed mode tables for randomizer
+local SPEED_MODE_NAMES = {"FREE", "OCTAVES", "OCT+5TH", "SEMI", "DIATONIC"}
+local SPEED_MODES = {
+   -- 1: Free (continuous -2 to 2)
+   (function() local t = {}; for i=-24,24 do t[#t+1] = i/12 end; return t end)(),
+   -- 2: Octaves
+   {0.125, 0.25, 0.5, 1, 2, 4, -0.125, -0.25, -0.5, -1, -2, -4},
+   -- 3: Octaves + Fifths
+   {0.125, 0.25, 0.5, 1, 2, 4, -0.125, -0.25, -0.5, -1, -2, -4,
+    0.749, 1.498, 2.997, -0.749, -1.498, -2.997},
+   -- 4: Semitones (2^(n/12) for n=-12..12)
+   (function()
+      local t = {}
+      for n=-12,12 do t[#t+1] = 2^(n/12) end
+      -- Add negative versions
+      for n=-12,12 do t[#t+1] = -(2^(n/12)) end
+      return t
+   end)(),
+   -- 5: Diatonic (white notes: 0,2,4,5,7,9,11 semitones + octaves)
+   (function()
+      local t = {}
+      local intervals = {0, 2, 4, 5, 7, 9, 11}
+      for oct=-2,2 do
+         for _, iv in ipairs(intervals) do
+            local st = oct*12 + iv
+            if math.abs(2^(st/12)) <= 4 then
+               t[#t+1] = 2^(st/12)
+               t[#t+1] = -(2^(st/12))
+            end
+         end
+      end
+      return t
+   end)()
+}
+
+function Loopers.get_speed_mode_name(mode)
+   return SPEED_MODE_NAMES[mode] or "FREE"
+end
+
 function Loopers.randomize_track(idx, state)
    local t = state.tracks[idx]
    if not t then return end
    
    if t.rnd_speed then
-      t.speed = math.random() * 4 - 2  -- -2 a 2
+      local mode = t.rnd_speed_mode or 1
+      if mode == 1 then
+         t.speed = math.random() * 4 - 2  -- Free: -2 to 2
+      else
+         local pool = SPEED_MODES[mode]
+         if pool and #pool > 0 then
+            t.speed = pool[math.random(#pool)]
+         else
+            t.speed = math.random() * 4 - 2
+         end
+      end
    end
    if t.rnd_deg then
       t.wow_macro = math.random()
