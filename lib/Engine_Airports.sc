@@ -185,7 +185,7 @@ Engine_Airports : CroneEngine {
                 var b_idx, bus_idx;
                 var gate_rec, gate_play;
                 var rate_slew, brake_idx, brake_mod, lfo_mod, lfo_lag_time;
-                var deg_curve, flutter_mod, final_rate;
+                var deg_curve, flutter_mod, flutter, final_rate;
                 var organic_brake_hpf, flux_gain;
                 var loop_len_samps, start_pos, end_pos, ptr;
                 var play_sig, deg_lpf, deg_hpf, corrosion_am, loop_ero, loop_dust_trig, loop_dropout_env, loop_gain_loss;
@@ -220,7 +220,10 @@ Engine_Airports : CroneEngine {
                     Select.kr(l_deg_arr[i] > 0.6, [LinLin.kr(l_deg_arr[i], 0.4, 0.6, 0.002, 0.02), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.6, 0.8, 0.02, 0.04), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 0.04, 0.08)])])
                 ]);
                 flutter_mod = Lag.kr(flutter_mod, 0.1);
-                final_rate = rate_slew * (1.0 + OnePole.ar(LFNoise2.ar(4+(i*1.5)) * (flutter_mod * 0.5), 0.5));
+                // Anti-click: HPF on flutter eliminates DC + subsonic drift → no accumulated phase offset at loop boundary
+                flutter = OnePole.ar(LFNoise2.ar(4+(i*1.5)) * (flutter_mod * 0.5), 0.5);
+                flutter = HPF.ar(flutter, 0.1);
+                final_rate = rate_slew * (1.0 + flutter);
 
                 organic_brake_hpf = LinExp.kr(rate_slew.abs + 0.001, 0.001, 1.0, 250, 10);
                 organic_brake_hpf = Lag.kr(organic_brake_hpf, 0.1);
