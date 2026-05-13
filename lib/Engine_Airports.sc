@@ -254,7 +254,7 @@ Engine_Airports : CroneEngine {
                 loop_gain_loss = (loop_dropout_env * loop_ero).clip(0, 0.9);
                 play_sig = play_sig * (1.0 - loop_gain_loss);
                 sat_drive = Select.kr(l_deg_arr[i] > 0.2, [DC.kr(1.0), Select.kr(l_deg_arr[i] > 0.5, [LinLin.kr(l_deg_arr[i], 0.2, 0.5, 1.0, 1.5), Select.kr(l_deg_arr[i] > 0.8, [LinLin.kr(l_deg_arr[i], 0.5, 0.8, 1.5, 3.0), LinLin.kr(l_deg_arr[i], 0.8, 1.0, 3.0, 4.5)])])]);
-                play_sig = Select.ar(l_deg_arr[i] < 0.2, [(play_sig * sat_drive).tanh, play_sig]);
+                play_sig = Select.ar(l_deg_arr[i] >= 0.2, [(play_sig * sat_drive).tanh, play_sig]);
                 dynamic_cutoff = (rate_slew.abs * 20000).clip(50, 20000);
                 play_sig = LPF.ar(play_sig, dynamic_cutoff);
                 sig_out = play_sig;
